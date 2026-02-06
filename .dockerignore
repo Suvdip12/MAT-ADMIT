@@ -1,0 +1,12 @@
+target/
+generated/
+*.log
+.git/
+.gitignore
+README.md
+test-admit-card.html
+apache-maven-3.9.6/
+startup_error.txt
+.idea/
+.vscode/
+*.iml
