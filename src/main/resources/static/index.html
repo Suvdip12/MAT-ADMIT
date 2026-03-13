@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AdmitPro | Premium Admit Card Generator</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <nav>
+            <div class="logo">Admit<span>Pro</span></div>
+            <div class="nav-links">
+                <a href="editor.html" class="btn btn-outline" style="margin-right: 1rem;">Template Studio</a>
+                <button class="btn btn-primary" onclick="window.scrollTo({top: document.getElementById('templates').offsetTop, behavior: 'smooth'})">Get Started</button>
+            </div>
+        </nav>
+
+        <section class="hero animate-fade-in">
+            <h1>Create Professional Admit Cards <br><span>In Seconds.</span></h1>
+            <p class="subtitle">Design custom templates, generate bulk documents as PDF or Word, and manage everything in one powerful dashboard.</p>
+            <div class="hero-actions">
+                <a href="#templates" class="btn btn-primary btn-lg">Browse Templates</a>
+                <a href="bulk.html" class="btn btn-outline">Bulk Upload</a>
+            </div>
+        </section>
+
+        <section id="templates" class="animate-fade-in" style="animation-delay: 0.2s;">
+            <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 2rem;">
+                <div>
+                    <h2>Available Templates</h2>
+                    <p style="color: var(--text-muted)">Select a template to start generating</p>
+                </div>
+                <a href="editor.html" class="btn btn-outline">+ Create New</a>
+            </div>
+            
+            <div id="templates-grid" class="grid">
+                <!-- Templates will be loaded here via JS -->
+                <div class="glass-card" style="text-align: center; color: var(--text-muted); padding: 4rem;">
+                    Loading your templates...
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- Modal for Generation -->
+    <div id="gen-modal" class="modal" style="display: none;">
+        <div class="modal-content glass-card">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
+                <h2 id="modal-title">Generate Document</h2>
+                <button onclick="closeModal()" style="background:none; border:none; color:white; cursor:pointer; font-size: 1.5rem;">&times;</button>
+            </div>
+            <form id="gen-form">
+                <div id="form-fields"></div>
+                <div style="margin-top: 2rem; display: flex; gap: 1rem;">
+                    <button type="submit" data-type="PDF" class="btn btn-primary" style="flex: 1;">Download PDF</button>
+                    <button type="submit" data-type="WORD" class="btn btn-outline" style="flex: 1;">Download Word</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

@@ -1,29 +1,43 @@
 package com.admitcard.service;
 
 import com.admitcard.dto.StudentDataDTO;
+import com.admitcard.model.Template;
+import com.admitcard.repository.TemplateRepository;
 import com.admitcard.util.PdfGeneratorUtil;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
-import org.springframework.util.FileCopyUtils;
 
 import java.io.File;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
 @Service
 public class AdmitCardService {
 
+    private final TemplateRepository templateRepository;
+
     @Value("${file.storage.location}")
     private String fileStorageLocation;
 
+    public AdmitCardService(TemplateRepository templateRepository) {
+        this.templateRepository = templateRepository;
+    }
+
     public String generateAdmitCard(StudentDataDTO studentData) throws IOException {
-        // 1. Load HTML Template
-        ClassPathResource resource = new ClassPathResource("templates/admit-card-template.html");
-        byte[] bdata = FileCopyUtils.copyToByteArray(resource.getInputStream());
-        String htmlContent = new String(bdata, StandardCharsets.UTF_8);
+        // 1. Load HTML Template from Database (Fallback to first template if "Official" not found)
+        Template template = templateRepository.findAll().stream()
+                .filter(t -> t.getName().equalsIgnoreCase("Official Admit Card"))
+                .findFirst()
+                .orElseGet(() -> {
+                    return templateRepository.findAll().stream().findFirst().orElse(null);
+                });
+
+        if (template == null) {
+            throw new IOException("No templates found in database.");
+        }
+        
+        String htmlContent = template.getHtmlContent();
 
         // 2. Replace Placeholders
         htmlContent = htmlContent.replace("{{name}}", studentData.getName() != null ? studentData.getName() : "");

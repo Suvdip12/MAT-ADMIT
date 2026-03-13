@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bulk Generation | AdmitPro</title>
+    <link rel="stylesheet" href="style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        .drop-zone {
+            border: 2px dashed var(--card-border);
+            border-radius: 1.5rem;
+            padding: 4rem;
+            text-align: center;
+            transition: all 0.2s;
+            cursor: pointer;
+            margin-bottom: 2rem;
+        }
+        .drop-zone:hover, .drop-zone.active {
+            border-color: var(--primary);
+            background: rgba(99, 102, 241, 0.05);
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 1.5rem;
+        }
+        th, td {
+            text-align: left;
+            padding: 1rem;
+            border-bottom: 1px solid var(--card-border);
+        }
+        th { color: var(--text-muted); font-weight: 600; font-size: 0.85rem; text-transform: uppercase; }
+        .config-panel {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <nav>
+            <div class="logo"><a href="index.html" style="text-decoration: none; color: inherit;">Admit<span>Pro</span> Bulk</a></div>
+            <a href="index.html" class="btn btn-outline">Back Home</a>
+        </nav>
+
+        <section class="animate-fade-in">
+            <h1>Bulk Generation</h1>
+            <p class="subtitle">Upload a JSON or CSV file to generate multiple documents at once.</p>
+
+            <div class="config-panel">
+                <div class="glass-card">
+                    <label style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: var(--text-muted);">Step 1: Select Template</label>
+                    <select id="template-select" style="width: 100%; padding: 0.75rem; border-radius: 0.5rem; background: rgba(0,0,0,0.2); border: 1px solid var(--card-border); color: white; outline: none;">
+                        <option value="">Loading templates...</option>
+                    </select>
+                </div>
+                <div class="glass-card">
+                    <label style="display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: var(--text-muted);">Step 2: Output Format</label>
+                    <div style="display: flex; gap: 1rem; margin-top: 0.5rem;">
+                        <label><input type="radio" name="format" value="PDF" checked> PDF Zip</label>
+                        <label><input type="radio" name="format" value="WORD"> Word Zip</label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="glass-card">
+                <div id="drop-zone" class="drop-zone">
+                    <p style="font-size: 1.25rem; font-weight: 600; margin-bottom: 0.5rem;">Drop JSON/CSV file here</p>
+                    <p style="color: var(--text-muted)">or click to select file</p>
+                    <input type="file" id="file-input" style="display: none;" accept=".json,.csv">
+                </div>
+
+                <div id="preview-section" style="display: none;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                        <h3>Data Preview (<span id="row-count">0</span> rows)</h3>
+                        <button class="btn btn-primary" onclick="generateBulk()">Generate & Download Zip</button>
+                    </div>
+                    <div style="overflow-x: auto;">
+                        <table id="data-table">
+                            <thead id="table-head"></thead>
+                            <tbody id="table-body"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <script>
+        const dropZone = document.getElementById('drop-zone');
+        const fileInput = document.getElementById('file-input');
+        const templateSelect = document.getElementById('template-select');
+        let uploadedData = [];
+
+        // Load templates
+        fetch('/api/templates').then(r => r.json()).then(data => {
+            templateSelect.innerHTML = data.map(t => `<option value="${t.id}">${t.name}</option>`).join('') || '<option value="">No templates found</option>';
+        });
+
+        dropZone.onclick = () => fileInput.click();
+        fileInput.onchange = (e) => handleFile(e.target.files[0]);
+
+        function handleFile(file) {
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const text = e.target.result;
+                if (file.name.endsWith('.json')) {
+                    uploadedData = JSON.parse(text);
+                } else if (file.name.endsWith('.csv')) {
+                    uploadedData = parseCSV(text);
+                }
+                renderPreview();
+            };
+            reader.readAsText(file);
+        }
+
+        function parseCSV(text) {
+            const lines = text.split('\n').filter(l => l.trim());
+            const headers = lines[0].split(',').map(h => h.trim());
+            return lines.slice(1).map(line => {
+                const values = line.split(',');
+                return headers.reduce((obj, h, i) => {
+                    obj[h] = values[i]?.trim();
+                    return obj;
+                }, {});
+            });
+        }
+
+        function renderPreview() {
+            if (uploadedData.length === 0) return;
+            const headers = Object.keys(uploadedData[0]);
+            
+            document.getElementById('table-head').innerHTML = '<tr>' + headers.map(h => `<th>${h}</th>`).join('') + '</tr>';
+            document.getElementById('table-body').innerHTML = uploadedData.map(row => 
+                '<tr>' + headers.map(h => `<td>${row[h]}</td>`).join('') + '</tr>'
+            ).join('');
+            
+            document.getElementById('row-count').innerText = uploadedData.length;
+            document.getElementById('preview-section').style.display = 'block';
+            dropZone.style.display = 'none';
+        }
+
+        async function generateBulk() {
+            const templateId = templateSelect.value;
+            const format = document.querySelector('input[name="format"]:checked').value;
+            
+            if (!templateId) return alert('Select a template first');
+
+            const btn = document.querySelector('.btn-primary');
+            btn.innerText = 'Processing...';
+            btn.disabled = true;
+
+            try {
+                const response = await fetch('/api/documents/generate-bulk', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        templateId: templateId,
+                        outputType: format,
+                        studentDataList: uploadedData
+                    })
+                });
+                const result = await response.json();
+                if (result.success) {
+                    window.location.href = `/api/documents/download/${result.data}`;
+                    alert('Bulk generation started! Check your downloads.');
+                } else {
+                    alert('Error: ' + result.message);
+                }
+            } catch (error) {
+                console.error(error);
+                alert('Generation failed');
+            } finally {
+                btn.innerText = 'Generate & Download Zip';
+                btn.disabled = false;
+            }
+        }
+    </script>
+</body>
+</html>

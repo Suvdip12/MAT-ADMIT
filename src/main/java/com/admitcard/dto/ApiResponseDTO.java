@@ -5,12 +5,12 @@ package com.admitcard.dto;
 public class ApiResponseDTO {
     private boolean success;
     private String message;
-    private String downloadUrl;
+    private String data; // Renamed from downloadUrl to match frontend expectations
 
-    public ApiResponseDTO(boolean success, String message, String downloadUrl) {
+    public ApiResponseDTO(boolean success, String message, String data) {
         this.success = success;
         this.message = message;
-        this.downloadUrl = downloadUrl;
+        this.data = data;
     }
 
     public boolean isSuccess() { return success; }
@@ -19,6 +19,6 @@ public class ApiResponseDTO {
     public String getMessage() { return message; }
     public void setMessage(String message) { this.message = message; }
 
-    public String getDownloadUrl() { return downloadUrl; }
-    public void setDownloadUrl(String downloadUrl) { this.downloadUrl = downloadUrl; }
+    public String getData() { return data; }
+    public void setData(String data) { this.data = data; }
 }
