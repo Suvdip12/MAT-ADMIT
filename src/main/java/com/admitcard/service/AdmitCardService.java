@@ -16,12 +16,14 @@ import java.time.format.DateTimeFormatter;
 public class AdmitCardService {
 
     private final TemplateRepository templateRepository;
+    private final PdfSigningService pdfSigningService;
 
     @Value("${file.storage.location}")
     private String fileStorageLocation;
 
-    public AdmitCardService(TemplateRepository templateRepository) {
+    public AdmitCardService(TemplateRepository templateRepository, PdfSigningService pdfSigningService) {
         this.templateRepository = templateRepository;
+        this.pdfSigningService = pdfSigningService;
     }
 
     public String generateAdmitCard(StudentDataDTO studentData) throws IOException {
@@ -65,6 +67,11 @@ public class AdmitCardService {
 
         // 5. Generate PDF
         PdfGeneratorUtil.generatePdfFromHtml(htmlContent, filePath);
+        try {
+            pdfSigningService.signPdfFileInPlace(filePath);
+        } catch (Exception exception) {
+            throw new IOException("Admit card generated, but digital signing failed: " + exception.getMessage(), exception);
+        }
 
         return filePath;
     }

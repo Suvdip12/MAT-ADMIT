@@ -17,6 +17,12 @@ import java.util.Map;
 @Service
 public class DocumentService {
 
+    private final PdfSigningService pdfSigningService;
+
+    public DocumentService(PdfSigningService pdfSigningService) {
+        this.pdfSigningService = pdfSigningService;
+    }
+
     public void generatePdf(String htmlContent, String outputPath) throws IOException {
         try (FileOutputStream outputStream = new FileOutputStream(outputPath)) {
             PdfWriter writer = new PdfWriter(outputStream);
@@ -24,6 +30,12 @@ public class DocumentService {
             pdf.setDefaultPageSize(PageSize.A4);
             ConverterProperties converterProperties = new ConverterProperties();
             HtmlConverter.convertToPdf(htmlContent, pdf, converterProperties);
+        }
+
+        try {
+            pdfSigningService.signPdfFileInPlace(outputPath);
+        } catch (Exception exception) {
+            throw new IOException("PDF generated, but digital signing failed: " + exception.getMessage(), exception);
         }
     }
 
