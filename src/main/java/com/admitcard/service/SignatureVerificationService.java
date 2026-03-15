@@ -37,6 +37,20 @@ public class SignatureVerificationService {
 
     private static final SimpleDateFormat BADGE_DATE_FORMAT =
             new SimpleDateFormat("dd-MMM-yyyy HH:mm:ss", Locale.ENGLISH);
+    private static final float ADOBE_BADGE_WIDTH = 120f;
+    private static final float ADOBE_BADGE_HEIGHT = 60f;
+    private static final float ADOBE_LEFT_INSET = 2f;
+    private static final float ADOBE_TITLE_FONT = 11.8f;
+    private static final float ADOBE_TITLE_BASELINE = 46.4f;
+    private static final float ADOBE_META_FONT = 7.6f;
+    private static final float ADOBE_META_BASELINE = 32.4f;
+    private static final float ADOBE_META_LEADING = 7.6f;
+    private static final float ADOBE_VALID_TICK_CENTER_X = 84f;
+    private static final float ADOBE_VALID_TICK_CENTER_Y = 32f;
+    private static final float ADOBE_VALID_TICK_SIZE = 39f;
+    private static final float ADOBE_INVALID_ICON_X = 75f;
+    private static final float ADOBE_INVALID_ICON_Y = 7f;
+    private static final float ADOBE_INVALID_ICON_SIZE = 43f;
 
     private final PdfSigningService pdfSigningService;
 
@@ -274,44 +288,57 @@ public class SignatureVerificationService {
         PdfFont font = PdfFontFactory.createFont(StandardFonts.HELVETICA);
         PdfFont boldFont = PdfFontFactory.createFont(StandardFonts.HELVETICA_BOLD);
 
-        float iconSize = Math.min(width * 0.34f, height * 0.92f);
         if (isValid) {
-            drawAdobeTick(canvas, x + width * 0.76f, y + height * 0.46f, iconSize);
+            drawAdobeTick(
+                    canvas,
+                    x + width * (ADOBE_VALID_TICK_CENTER_X / ADOBE_BADGE_WIDTH),
+                    y + height * (ADOBE_VALID_TICK_CENTER_Y / ADOBE_BADGE_HEIGHT),
+                    scaleByAdobeReference(width, height, ADOBE_VALID_TICK_SIZE, ADOBE_VALID_TICK_SIZE)
+            );
         } else {
-            drawAdobeQuestionMark(canvas, x + width * 0.76f, y + height * 0.44f, iconSize);
+            drawAdobeQuestionMark(
+                    canvas,
+                    x + width * (ADOBE_INVALID_ICON_X / ADOBE_BADGE_WIDTH),
+                    y + height * (ADOBE_INVALID_ICON_Y / ADOBE_BADGE_HEIGHT),
+                    scaleByAdobeReference(width, height, ADOBE_INVALID_ICON_SIZE, ADOBE_INVALID_ICON_SIZE)
+            );
         }
 
-        float headerSize = Math.max(8.5f, Math.min(height * 0.34f, width * 0.16f));
+        float leftInset = scaleByAdobeReference(width, height, ADOBE_LEFT_INSET, ADOBE_LEFT_INSET);
+        float headerSize = scaleByAdobeReference(width, height, ADOBE_TITLE_FONT, ADOBE_TITLE_FONT);
         canvas.beginText()
-            .setFontAndSize(boldFont, headerSize)
+            .setFontAndSize(font, headerSize)
             .setFillColor(new DeviceRgb(0, 0, 0))
-            .moveText(x + width * 0.03f, y + height - headerSize - height * 0.02f)
+            .moveText(x + leftInset, y + scaleByAdobeReference(width, height, ADOBE_TITLE_BASELINE, ADOBE_TITLE_BASELINE))
             .showText(isValid ? "Signature valid" : "Signature Not Verified")
             .endText();
 
-        float metaSize = Math.max(5.2f, Math.min(height * 0.17f, width * 0.085f));
-        float leading = metaSize * 1.06f;
-        canvas.beginText()
-            .setFontAndSize(font, metaSize)
-            .setFillColor(new DeviceRgb(0, 0, 0));
+        float metaSize = scaleByAdobeReference(width, height, ADOBE_META_FONT, ADOBE_META_FONT);
+        float metaBaseline = scaleByAdobeReference(width, height, ADOBE_META_BASELINE, ADOBE_META_BASELINE);
+        float leading = scaleByAdobeReference(width, height, ADOBE_META_LEADING, ADOBE_META_LEADING);
 
-        canvas.moveText(x + width * 0.055f, y + height * 0.58f);
-        canvas.showText("Digitally Signed.");
-        canvas.moveText(0, -leading);
+        drawBadgeLine(canvas, font, metaSize, x + leftInset, y + metaBaseline, "Digitally Signed.");
+        drawBadgeLine(canvas, font, metaSize, x + leftInset, y + metaBaseline - leading, "Name: " + extractDisplayName(signatureInfo.signerName));
+        drawBadgeLine(canvas, font, metaSize, x + leftInset, y + metaBaseline - leading * 2, "Date: " + safeDisplayValue(signatureInfo.signingDate));
+        drawBadgeLine(canvas, font, metaSize, x + leftInset, y + metaBaseline - leading * 3, "Reason: " + safeDisplayValue(signatureInfo.reason));
+        drawBadgeLine(canvas, font, metaSize, x + leftInset, y + metaBaseline - leading * 4, "Location: " + safeDisplayValue(signatureInfo.location));
 
-        canvas.showText("Name: " + extractDisplayName(signatureInfo.signerName));
-        canvas.moveText(0, -leading);
-
-        canvas.showText("Date: " + safeDisplayValue(signatureInfo.signingDate));
-        canvas.moveText(0, -leading);
-
-        canvas.showText("Reason: " + safeDisplayValue(signatureInfo.reason));
-        canvas.moveText(0, -leading);
-
-        canvas.showText("Location: " + safeDisplayValue(signatureInfo.location));
-
-        canvas.endText();
         canvas.restoreState();
+    }
+
+    private float scaleByAdobeReference(float width, float height, float baseWidthValue, float baseHeightValue) {
+        float widthScale = width / ADOBE_BADGE_WIDTH;
+        float heightScale = height / ADOBE_BADGE_HEIGHT;
+        return (baseWidthValue * widthScale + baseHeightValue * heightScale) / 2f;
+    }
+
+    private void drawBadgeLine(PdfCanvas canvas, PdfFont font, float fontSize, float x, float y, String text) {
+        canvas.beginText()
+            .setFontAndSize(font, fontSize)
+            .setFillColor(new DeviceRgb(0, 0, 0))
+            .moveText(x, y)
+            .showText(text)
+            .endText();
     }
 
     private String extractDisplayName(String signerName) {
@@ -340,28 +367,29 @@ public class SignatureVerificationService {
         canvas.setLineJoinStyle(PdfCanvasConstants.LineJoinStyle.MITER);
 
         canvas.setStrokeColor(new DeviceRgb(0, 0, 0));
-        canvas.setLineWidth(size * 0.30f);
+        canvas.setLineWidth(size * 0.32f);
         drawTickStroke(canvas, cx, cy, size);
         canvas.stroke();
 
         canvas.setStrokeColor(new DeviceRgb(0, 184, 84));
-        canvas.setLineWidth(size * 0.20f);
+        canvas.setLineWidth(size * 0.22f);
         drawTickStroke(canvas, cx, cy, size);
         canvas.stroke();
         canvas.restoreState();
     }
 
     private void drawTickStroke(PdfCanvas canvas, float x, float y, float s) {
-        canvas.moveTo(x - s * 0.40f, y - s * 0.04f);
-        canvas.lineTo(x - s * 0.12f, y - s * 0.34f);
-        canvas.lineTo(x + s * 0.41f, y + s * 0.34f);
+        canvas.moveTo(x - s * 0.38f, y - s * 0.03f);
+        canvas.lineTo(x - s * 0.12f, y - s * 0.32f);
+        canvas.lineTo(x + s * 0.34f, y + s * 0.32f);
     }
 
     private void drawAdobeQuestionMark(PdfCanvas canvas, float cx, float cy, float size) throws Exception {
         PdfFont boldFont = PdfFontFactory.createFont(StandardFonts.HELVETICA_BOLD);
+        float shadowOffset = Math.max(1.2f, size * 0.04f);
         canvas.saveState();
         canvas.setFillColor(new DeviceRgb(0, 0, 0));
-        canvas.beginText().setFontAndSize(boldFont, size).moveText(cx + 1.2f, cy - 1.2f).showText("?").endText();
+        canvas.beginText().setFontAndSize(boldFont, size).moveText(cx + shadowOffset, cy - shadowOffset).showText("?").endText();
         canvas.setFillColor(new DeviceRgb(255, 220, 0));
         canvas.beginText().setFontAndSize(boldFont, size).moveText(cx, cy).showText("?").endText();
         canvas.restoreState();
