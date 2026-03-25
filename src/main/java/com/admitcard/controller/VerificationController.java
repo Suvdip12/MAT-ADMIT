@@ -78,7 +78,16 @@ public class VerificationController {
             return ResponseEntity.ok(result);
         } catch (Exception e) {
             e.printStackTrace();
-            return ResponseEntity.internalServerError().build();
+            // Return a structured JSON error instead of an empty 500 body
+            VerificationResponseDTO errorResponse = new VerificationResponseDTO(
+                    false,
+                    "Verification Error",
+                    "N/A",
+                    "N/A",
+                    "N/A",
+                    "Verification failed: " + e.getMessage()
+            );
+            return ResponseEntity.internalServerError().body(errorResponse);
         }
     }
 }

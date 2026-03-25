@@ -9,7 +9,7 @@ import com.itextpdf.kernel.pdf.PdfDocument;
 import com.itextpdf.kernel.pdf.PdfReader;
 import com.itextpdf.kernel.pdf.PdfWriter;
 import com.itextpdf.kernel.pdf.canvas.PdfCanvas;
-import com.itextpdf.kernel.pdf.canvas.PdfCanvasConstants;
+
 import com.itextpdf.kernel.pdf.xobject.PdfFormXObject;
 import com.itextpdf.kernel.colors.DeviceRgb;
 import com.itextpdf.kernel.geom.PageSize;
@@ -20,6 +20,9 @@ import com.itextpdf.io.font.constants.StandardFonts;
 import com.itextpdf.signatures.PdfPKCS7;
 import com.itextpdf.signatures.SignatureUtil;
 import com.itextpdf.html2pdf.HtmlConverter;
+import com.itextpdf.io.image.ImageData;
+import com.itextpdf.io.image.ImageDataFactory;
+import com.itextpdf.io.util.StreamUtil;
 import org.springframework.stereotype.Service;
 
 import java.io.ByteArrayOutputStream;
@@ -45,9 +48,9 @@ public class SignatureVerificationService {
     private static final float ADOBE_META_FONT = 7.6f;
     private static final float ADOBE_META_BASELINE = 32.4f;
     private static final float ADOBE_META_LEADING = 7.6f;
-    private static final float ADOBE_VALID_TICK_CENTER_X = 84f;
-    private static final float ADOBE_VALID_TICK_CENTER_Y = 32f;
-    private static final float ADOBE_VALID_TICK_SIZE = 39f;
+    private static final float ADOBE_VALID_TICK_CENTER_X = 82f;
+    private static final float ADOBE_VALID_TICK_CENTER_Y = 26f;
+    private static final float ADOBE_VALID_TICK_SIZE = 34f;
     private static final float ADOBE_INVALID_ICON_X = 75f;
     private static final float ADOBE_INVALID_ICON_Y = 7f;
     private static final float ADOBE_INVALID_ICON_SIZE = 43f;
@@ -59,6 +62,7 @@ public class SignatureVerificationService {
     }
 
     public SignatureVerificationResult verifySignatures(InputStream pdfInputStream) throws Exception {
+        ensureBouncyCastleProvider();
         SignatureVerificationResult result = new SignatureVerificationResult();
         List<SignatureVerificationResult.SignatureInfo> signatureInfos = new ArrayList<>();
         
@@ -81,7 +85,7 @@ public class SignatureVerificationService {
                 info.signatureName = name;
                 
                 try {
-                    PdfPKCS7 pkcs7 = signUtil.readSignatureData(name);
+                    PdfPKCS7 pkcs7 = readSignatureDataWithFallback(signUtil, name);
                     
                     // Verify integrity and authenticity
                     boolean isValid = pkcs7.verifySignatureIntegrityAndAuthenticity();
@@ -105,7 +109,7 @@ public class SignatureVerificationService {
                     // Detailed extraction
                     info.reason = pkcs7.getReason();
                     info.location = pkcs7.getLocation();
-                    info.algorithm = pkcs7.getHashAlgorithm();
+                    info.algorithm = pkcs7.getDigestAlgorithmName();
                     
                     if (pkcs7.getSigningCertificate() != null) {
                         info.certificateAuthority = pkcs7.getSigningCertificate().getIssuerDN().getName();
@@ -269,10 +273,16 @@ public class SignatureVerificationService {
     }
 
     private void drawStatusBadge(PdfCanvas canvas, Rectangle rect, SignatureVerificationResult.SignatureInfo signatureInfo) throws Exception {
-        float x = rect.getLeft();
-        float y = rect.getBottom();
-        float width = rect.getWidth();
-        float height = rect.getHeight();
+        float sourceX = rect.getLeft();
+        float sourceY = rect.getBottom();
+        float sourceWidth = rect.getWidth();
+        float sourceHeight = rect.getHeight();
+
+        float maxBadgeScale = 3.0f;
+        float width = Math.min(sourceWidth, ADOBE_BADGE_WIDTH * maxBadgeScale);
+        float height = Math.min(sourceHeight, ADOBE_BADGE_HEIGHT * maxBadgeScale);
+        float x = sourceX + ((sourceWidth - width) / 2f);
+        float y = sourceY + ((sourceHeight - height) / 2f);
         boolean isValid = signatureInfo.isValid;
 
         canvas.saveState();
@@ -286,7 +296,6 @@ public class SignatureVerificationService {
         canvas.fill();
 
         PdfFont font = PdfFontFactory.createFont(StandardFonts.HELVETICA);
-        PdfFont boldFont = PdfFontFactory.createFont(StandardFonts.HELVETICA_BOLD);
 
         if (isValid) {
             drawAdobeTick(
@@ -361,27 +370,40 @@ public class SignatureVerificationService {
         return value == null || value.isBlank() ? "N/A" : value;
     }
 
+    /**
+     * Draws the tick image directly for valid signatures —
+     * using the user-provided PNG for a perfect look.
+     *
+     * @param canvas  target PDF canvas
+     * @param cx      horizontal centre of the tick
+     * @param cy      vertical centre of the tick (PDF y-up)
+     * @param size    half-size / scale factor in points
+     */
     private void drawAdobeTick(PdfCanvas canvas, float cx, float cy, float size) {
-        canvas.saveState();
-        canvas.setLineCapStyle(PdfCanvasConstants.LineCapStyle.PROJECTING_SQUARE);
-        canvas.setLineJoinStyle(PdfCanvasConstants.LineJoinStyle.MITER);
-
-        canvas.setStrokeColor(new DeviceRgb(0, 0, 0));
-        canvas.setLineWidth(size * 0.32f);
-        drawTickStroke(canvas, cx, cy, size);
-        canvas.stroke();
-
-        canvas.setStrokeColor(new DeviceRgb(0, 184, 84));
-        canvas.setLineWidth(size * 0.22f);
-        drawTickStroke(canvas, cx, cy, size);
-        canvas.stroke();
-        canvas.restoreState();
-    }
-
-    private void drawTickStroke(PdfCanvas canvas, float x, float y, float s) {
-        canvas.moveTo(x - s * 0.38f, y - s * 0.03f);
-        canvas.lineTo(x - s * 0.12f, y - s * 0.32f);
-        canvas.lineTo(x + s * 0.34f, y + s * 0.32f);
+        try {
+            // Load the image from classpath
+            byte[] imageBytes = StreamUtil.inputStreamToArray(
+                    getClass().getResourceAsStream("/images/tick_valid.png"));
+            ImageData imageData = ImageDataFactory.create(imageBytes);
+            
+            // Calculate position to center the image at (cx, cy)
+            // Image size is 'size * 2' to match the polygon's scale
+            float imgWidth = size * 2.5f;
+            float imgHeight = size * 2.5f;
+            float x = cx - (imgWidth / 2f);
+            float y = cy - (imgHeight / 2f);
+            
+            // iText 8 PdfCanvas uses transformation matrix for scaling
+            canvas.addImageWithTransformationMatrix(imageData, imgWidth, 0, 0, imgHeight, x, y, false);
+        } catch (Exception e) {
+            e.printStackTrace();
+            // Fallback to a simple green circle if image loading fails
+            canvas.saveState();
+            canvas.setFillColor(new DeviceRgb(30, 190, 70));
+            canvas.circle(cx, cy, size * 0.5f);
+            canvas.fill();
+            canvas.restoreState();
+        }
     }
 
     private void drawAdobeQuestionMark(PdfCanvas canvas, float cx, float cy, float size) throws Exception {
@@ -404,11 +426,12 @@ public class SignatureVerificationService {
                     "No signature found",
                     "N/A",
                     "N/A",
-                    "N/A"
+                    "N/A",
+                    "Document does not contain any digital signatures."
             );
         }
 
-        SignatureVerificationResult.SignatureInfo sig = result.signatures.get(0);
+        SignatureVerificationResult.SignatureInfo sig = selectBestSignature(result.signatures);
         
         // Refine signer name for display
         String displayName = sig.signerName;
@@ -424,7 +447,31 @@ public class SignatureVerificationService {
                 displayName,
                 sig.signingDate,
                 sig.reason != null ? sig.reason : "N/A",
-                sig.location != null ? sig.location : "N/A"
+                sig.location != null ? sig.location : "N/A",
+                sig.message != null ? sig.message : (sig.isValid ? "Signature Valid" : "Signature Not Verified")
         );
+    }
+
+    private SignatureVerificationResult.SignatureInfo selectBestSignature(
+            List<SignatureVerificationResult.SignatureInfo> signatures) {
+        for (int i = signatures.size() - 1; i >= 0; i--) {
+            SignatureVerificationResult.SignatureInfo info = signatures.get(i);
+            if (info.isValid) {
+                return info;
+            }
+        }
+        return signatures.get(0);
+    }
+
+    private PdfPKCS7 readSignatureDataWithFallback(SignatureUtil signUtil, String name) throws Exception {
+        // iText 8 uses its own BouncyCastle abstraction layer (bouncy-castle-adapter).
+        // Passing a raw BC provider name conflicts with that abstraction and causes
+        // runtime failures. The no-arg overload is correct for iText 8.
+        return signUtil.readSignatureData(name);
+    }
+
+    private void ensureBouncyCastleProvider() {
+        // iText 8's bouncy-castle-adapter handles BC registration internally.
+        // No manual provider registration needed.
     }
 }

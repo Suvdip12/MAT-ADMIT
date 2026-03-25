@@ -8,261 +8,592 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/lucide@0.344.0/dist/umd/lucide.min.js"></script>
     <style>
+        /* ── Page layout ─────────────────────────────────────────────────── */
         .verify-container {
-            max-width: 800px;
-            margin: 4rem auto;
+            max-width: 860px;
+            margin: 3.5rem auto;
             text-align: center;
         }
 
+        /* ── Upload zone ─────────────────────────────────────────────────── */
         .upload-zone {
             border: 2px dashed var(--card-border);
             border-radius: 1.5rem;
-            padding: 4rem 2rem;
+            padding: 3.5rem 2rem;
             cursor: pointer;
             transition: all 0.3s ease;
             background: var(--card-bg);
-            margin-bottom: 2rem;
+            margin-bottom: 1.5rem;
         }
-
         .upload-zone:hover, .upload-zone.dragging {
             border-color: var(--primary);
-            background: rgba(99, 102, 241, 0.1);
+            background: rgba(99, 102, 241, 0.08);
+        }
+        .upload-zone.has-file {
+            padding: 1.25rem 2rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            text-align: left;
+            border-style: solid;
+            border-color: var(--primary);
+        }
+        .upload-zone.has-file .upload-icon-wrap { flex-shrink: 0; }
+        .upload-zone.has-file .upload-text h3 { font-size: 0.95rem; margin: 0 0 0.2rem; }
+        .upload-zone.has-file .upload-text p  { font-size: 0.8rem; margin: 0; color: var(--text-muted); }
+        .upload-zone.has-file .change-badge {
+            margin-left: auto; flex-shrink: 0;
+            font-size: 0.75rem; padding: 0.3rem 0.7rem;
+            border: 1px solid var(--card-border);
+            border-radius: 999px; color: var(--text-muted);
+            cursor: pointer;
         }
 
+        /* ── Verify button row ───────────────────────────────────────────── */
+        #verify-btn-row {
+            display: none;
+            margin-bottom: 1.5rem;
+        }
+        #verify-btn {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.6rem;
+            font-size: 1.05rem;
+            padding: 0.9rem 2rem;
+            border-radius: 1rem;
+            cursor: pointer;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            border: none;
+            color: #fff;
+            transition: opacity 0.2s, transform 0.15s;
+            box-shadow: 0 4px 18px rgba(99,102,241,0.35);
+        }
+        #verify-btn:hover  { opacity: 0.92; transform: translateY(-1px); }
+        #verify-btn:active { transform: translateY(0); }
+        #verify-btn:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
+
+        /* ── Spinner ─────────────────────────────────────────────────────── */
+        .loading-spinner {
+            display: none;
+            margin: 2rem auto;
+            width: 40px; height: 40px;
+            border: 4px solid rgba(255,255,255,0.1);
+            border-top: 4px solid var(--primary);
+            border-radius: 50%;
+            animation: spin 0.85s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* ── iText-stamped PDF viewer ────────────────────────────────────── */
+        .pdf-viewer-panel {
+            display: none;
+            border-radius: 1.25rem;
+            overflow: hidden;
+            border: 1px solid var(--card-border);
+            background: var(--card-bg);
+            margin-bottom: 2rem;
+        }
+        .pdf-viewer-header {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.85rem 1.25rem;
+            background: rgba(99,102,241,0.12);
+            border-bottom: 1px solid var(--card-border);
+        }
+        .pdf-viewer-header .viewer-title {
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: var(--primary);
+            flex: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .pdf-viewer-header .badge-itext {
+            font-size: 0.7rem;
+            font-weight: 700;
+            background: linear-gradient(135deg,#6366f1,#8b5cf6);
+            color: #fff;
+            border-radius: 999px;
+            padding: 0.2rem 0.65rem;
+            letter-spacing: 0.04em;
+            flex-shrink: 0;
+        }
+        .pdf-viewer-panel iframe {
+            width: 100%;
+            height: 580px;
+            border: none;
+            display: block;
+        }
+
+        /* ── Result card ─────────────────────────────────────────────────── */
         .result-card {
-            margin-top: 2rem;
+            margin-top: 0;
             text-align: left;
             display: none;
         }
 
-        .signature-item {
-            padding: 1.5rem;
-            border-radius: 1rem;
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px solid var(--card-border);
-            margin-bottom: 1rem;
-            display: flex;
-            align-items: flex-start;
-            gap: 1.5rem;
+        /* ── Details grid ────────────────────────────────────────────────── */
+        /* ── Detail popover in modal ────────────────────────────────────────── */
+        .modal-details-trigger {
+            font-size: 0.75rem; font-weight: 600; color: var(--primary);
+            cursor: pointer; text-decoration: underline; text-underline-offset: 3px;
+            padding: 0.4rem 0.8rem; border-radius: 0.5rem;
+            background: rgba(99, 102, 241, 0.1);
+        }
+        .modal-details-trigger:hover { background: rgba(99, 102, 241, 0.2); }
+
+        /* ── Full-screen Modal ───────────────────────────────────────────── */
+        #pdf-fullscreen-modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            z-index: 10000;
+            background: #0f172a; /* Deep dark background */
+            flex-direction: column;
+            animation: modalFadeIn 0.3s ease-out;
+        }
+        @keyframes modalFadeIn {
+            from { opacity: 0; transform: scale(1.02); }
+            to { opacity: 1; transform: scale(1); }
         }
 
-        .status-icon {
-            width: 48px;
-            height: 48px;
-            border-radius: 50%;
+        .modal-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0.75rem 1.5rem;
+            background: rgba(15, 23, 42, 0.95);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--card-border);
+            z-index: 10;
+        }
+
+        .modal-status-banner {
+            flex: 1;
             display: flex;
             align-items: center;
             justify-content: center;
+            gap: 1rem;
+        }
+
+        .modal-status-icon {
+            width: 40px; height: 40px;
+            display: flex; align-items: center; justify-content: center;
             flex-shrink: 0;
         }
 
-        .status-valid { background: rgba(16, 185, 129, 0.1); color: #10b981; }
-        .status-invalid { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
-        .status-warning { background: rgba(245, 158, 11, 0.1); color: #f59e0b; }
+        .modal-status-text { text-align: left; }
+        .modal-status-title { font-size: 1.1rem; font-weight: 800; margin: 0; }
+        .modal-status-subtitle { font-size: 0.8rem; color: var(--text-muted); margin:0.1rem 0 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 400px; }
 
-        .details h4 { margin-bottom: 0.5rem; font-size: 1.1rem; }
-        .details p { font-size: 0.9rem; color: var(--text-muted); margin-bottom: 0.25rem; }
-
-        .loading-spinner {
-            display: none;
-            margin: 2rem auto;
-            width: 40px;
-            height: 40px;
-            border: 4px solid rgba(255,255,255,0.1);
-            border-top: 4px solid var(--primary);
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
+        .modal-actions {
+            display: flex; gap: 0.6rem;
+            align-items: center;
         }
 
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .modal-body {
+            flex: 1;
+            position: relative;
+            background: #1e1b4b;
+            overflow: hidden;
+        }
+        .modal-body iframe {
+            width: 100%; height: 100%;
+            border: none;
+            display: block;
+        }
+
+        .close-modal-btn {
+            background: rgba(255,255,255,0.05);
+            border: 1px solid var(--card-border);
+            color: #fff;
+            width: 36px; height: 36px;
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .close-modal-btn:hover { background: rgba(239, 68, 68, 0.2); border-color: #ef4444; color: #ef4444; }
+
     </style>
 </head>
 <body>
     <div class="container">
         <nav>
-            <div class="logo"><a href="index.html" style="text-decoration: none; color: inherit;">Admit<span>Pro</span></a></div>
+            <div class="logo"><a href="index.html" style="text-decoration:none;color:inherit;">Admit<span>Pro</span></a></div>
             <div class="nav-links">
                 <a href="index.html" class="btn btn-outline">Home</a>
             </div>
         </nav>
 
         <div class="verify-container animate-fade-in">
-            <h1 style="font-size: 2.5rem; margin-bottom: 1rem;">Signature Verification</h1>
-            <p class="subtitle" style="margin-bottom: 3rem;">Upload a PDF to verify its digital signatures and integrity.</p>
+            <h1 style="font-size:2.5rem;margin-bottom:0.75rem;">Signature Verification</h1>
+            <p class="subtitle" style="margin-bottom:2.5rem;">Upload a signed PDF — we'll stamp it with iText and verify the digital signature.</p>
 
+            <!-- Upload zone -->
             <div class="upload-zone glass-card" id="drop-zone" onclick="document.getElementById('file-input').click()">
                 <input type="file" id="file-input" hidden accept="application/pdf">
-                <i data-lucide="shield-check" size="48" style="color: var(--primary); margin-bottom: 1rem;"></i>
-                <h3>Click or Drag PDF here</h3>
-                <p style="color: var(--text-muted); margin-top: 0.5rem;">Only digital signatures will be verified</p>
+
+                <!-- Default state -->
+                <div id="upload-default">
+                    <i data-lucide="scan-line" style="width:52px;height:52px;color:var(--primary);margin-bottom:1rem;"></i>
+                    <h3>Click or Drag a PDF here</h3>
+                    <p style="color:var(--text-muted);margin-top:0.5rem;font-size:0.9rem;">Supports digitally signed PDF files</p>
+                </div>
+
+                <!-- Chosen-file state (hidden until file picked) -->
+                <div id="upload-chosen" style="display:none;width:100%;align-items:center;gap:1rem;" class="upload-icon-wrap">
+                    <i data-lucide="file-check-2" style="width:36px;height:36px;color:#10b981;flex-shrink:0;"></i>
+                    <div class="upload-text">
+                        <h3 id="chosen-name">document.pdf</h3>
+                        <p id="chosen-size">0 KB</p>
+                    </div>
+                    <span class="change-badge">Change</span>
+                </div>
             </div>
 
-            <div id="loader" class="loading-spinner"></div>
-
-            <div id="result-area" class="result-card">
-                <!-- Results will be injected here -->
-            </div>
-
-            <div id="view-pdf-action" style="display: none; margin-top: 1rem;">
-                <button onclick="verifyAndStamp()" class="btn btn-secondary" style="width: 100%; display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
-                    <i data-lucide="eye"></i>
-                    Verify & View PDF (With Stamps)
+            <!-- Verify button (appears after file pick) -->
+            <div id="verify-btn-row">
+                <button id="verify-btn" onclick="runVerification()">
+                    <i data-lucide="shield-check" style="width:20px;height:20px;"></i>
+                    Verify Signature
                 </button>
             </div>
+
+            <!-- Spinner -->
+            <div id="loader" class="loading-spinner"></div>
+
+            <!-- iText-Stamped PDF Viewer -->
+            <!-- iText-Stamped PDF Viewer (Inline - Hidden by default now) -->
+            <div class="pdf-viewer-panel" id="pdf-viewer-panel">
+                <div class="pdf-viewer-header">
+                    <i data-lucide="stamp" style="width:16px;height:16px;color:var(--primary);flex-shrink:0;"></i>
+                    <span class="viewer-title" id="viewer-filename">stamped_document.pdf</span>
+                    <span class="badge-itext">iText Stamped</span>
+                </div>
+                <iframe id="stamped-pdf-iframe" title="iText Stamped PDF"></iframe>
+            </div>
+
+            <!-- Verification result (Summary below upload zone) -->
+            <div id="result-area" class="result-card"></div>
+        </div>
+    </div>
+
+    <!-- Full-Screen Modal Viewer -->
+    <div id="pdf-fullscreen-modal">
+        <div class="modal-header">
+            <div class="logo" style="font-size:1.1rem; margin-right: 1.5rem;"><a href="index.html" style="text-decoration:none;color:inherit;">Admit<span>Pro</span></a></div>
+            
+            <div class="modal-status-banner" id="modal-status-banner">
+                <div class="modal-status-icon" id="modal-status-icon"></div>
+                <div class="modal-status-text">
+                    <h2 class="modal-status-title" id="modal-status-title">Verifying...</h2>
+                    <p class="modal-status-subtitle" id="modal-status-subtitle">Please wait while we check the signature.</p>
+                </div>
+            </div>
+
+            <div class="modal-actions">
+                <button onclick="downloadStampedPdf()" class="btn btn-primary" style="padding: 0.45rem 0.9rem; font-size: 0.8rem;">
+                    <i data-lucide="download" style="width:14px;height:14px;"></i>
+                    Download PDF
+                </button>
+                <button onclick="downloadPdfReport()" class="btn btn-outline" style="padding: 0.45rem 0.9rem; font-size: 0.8rem;">
+                    <i data-lucide="file-badge" style="width:14px;height:14px;"></i>
+                    Report
+                </button>
+                <div class="close-modal-btn" onclick="closeModal()" title="Close Viewer">
+                    <i data-lucide="x" style="width:18px;height:18px;"></i>
+                </div>
+            </div>
+        </div>
+        <div class="modal-body">
+            <iframe id="modal-iframe" title="Verified PDF Viewer"></iframe>
+        </div>
+    </div>
+
+
+            <!-- Verification result -->
+            <div id="result-area" class="result-card"></div>
         </div>
     </div>
 
     <script>
-        const dropZone = document.getElementById('drop-zone');
-        const fileInput = document.getElementById('file-input');
-        const resultArea = document.getElementById('result-area');
-        const loader = document.getElementById('loader');
+        const dropZone      = document.getElementById('drop-zone');
+        const fileInput     = document.getElementById('file-input');
+        const resultArea    = document.getElementById('result-area');
+        const loader        = document.getElementById('loader');
+        const verifyBtnRow  = document.getElementById('verify-btn-row');
+        const verifyBtn     = document.getElementById('verify-btn');
+        const uploadDefault = document.getElementById('upload-default');
+        const uploadChosen  = document.getElementById('upload-chosen');
+        const chosenName    = document.getElementById('chosen-name');
+        const chosenSize    = document.getElementById('chosen-size');
+        const pdfViewerPanel  = document.getElementById('pdf-viewer-panel');
+        const stampedIframe   = document.getElementById('stamped-pdf-iframe');
+        const viewerFilename  = document.getElementById('viewer-filename');
 
-        // Drag and Drop
-        dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('dragging'); });
+        const fullscreenModal = document.getElementById('pdf-fullscreen-modal');
+        const modalIframe     = document.getElementById('modal-iframe');
+        const modalTitle      = document.getElementById('modal-status-title');
+        const modalSubtitle   = document.getElementById('modal-status-subtitle');
+        const modalIcon       = document.getElementById('modal-status-icon');
+
+        let currentStampedUrl = null;
+
+        // ── Modal controls ───────────────────────────────────────────────────
+        function openModal() {
+            fullscreenModal.style.display = 'flex';
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeModal() {
+            fullscreenModal.style.display = 'none';
+            document.body.style.overflow = '';
+        }
+
+
+        // ── Drag & Drop ──────────────────────────────────────────────────────
+        dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragging'); });
         dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragging'));
-        dropZone.addEventListener('drop', (e) => {
+        dropZone.addEventListener('drop', e => {
             e.preventDefault();
             dropZone.classList.remove('dragging');
-            handleFile(e.dataTransfer.files[0]);
+            setFile(e.dataTransfer.files[0]);
         });
+        fileInput.addEventListener('change', e => setFile(e.target.files[0]));
 
-        fileInput.addEventListener('change', (e) => handleFile(e.target.files[0]));
-
-        async function handleFile(file) {
+        // ── File chosen ──────────────────────────────────────────────────────
+        function setFile(file) {
             if (!file || file.type !== 'application/pdf') {
                 alert('Please upload a valid PDF file.');
                 return;
             }
 
+            // Show "chosen" state in upload zone
+            uploadDefault.style.display = 'none';
+            uploadChosen.style.display = 'flex';
+            chosenName.textContent = file.name;
+            const kb = (file.size / 1024).toFixed(1);
+            chosenSize.textContent = kb < 1024 ? kb + ' KB' : (file.size / 1048576).toFixed(2) + ' MB';
+            dropZone.classList.add('has-file');
+
+            // Hide old results, show verify button
             resultArea.style.display = 'none';
             resultArea.innerHTML = '';
-            loader.style.display = 'block';
+            pdfViewerPanel.style.display = 'none';
+            verifyBtnRow.style.display = 'block';
 
-            const formData = new FormData();
-            formData.append('file', file);
-
-            try {
-                const response = await fetch('/api/verify', {
-                    method: 'POST',
-                    body: formData
-                });
-
-                if (!response.ok) throw new Error('Verification failed');
-
-                const data = await response.json();
-                renderResults(data);
-            } catch (error) {
-                console.error(error);
-                alert('An error occurred during verification.');
-            } finally {
-                loader.style.display = 'none';
-            }
-        }
-
-        function renderResults(data) {
-            resultArea.style.display = 'block';
-            
-            const statusClass = data.valid ? 'status-valid' : 'status-invalid';
-            const icon = data.valid ? 'check' : 'x';
-            const title = data.valid ? 'Signature valid' : 'Signature Not Verified';
-            
-            resultArea.innerHTML = `
-                <div class="glass-card" style="padding: 3rem; text-align: center; border: 2px solid ${data.valid ? '#10b981' : '#ef4444'}; background: rgba(255,255,255,0.02);">
-                    <div style="font-size: 80px; margin-bottom: 1.5rem; color: ${data.valid ? '#10b981' : '#ef4444'};">
-                        <i data-lucide="${icon}" size="80"></i>
-                    </div>
-                    
-                    <h2 style="font-size: 2rem; margin-bottom: 2rem; color: ${data.valid ? '#10b981' : '#ef4444'};">${title}</h2>
-                    
-                    <div style="text-align: left; max-width: 400px; margin: 0 auto; padding: 1.5rem; background: rgba(0,0,0,0.2); border-radius: 1rem; border: 1px solid var(--card-border);">
-                        <p style="margin-bottom: 0.5rem; font-weight: 600;">Digitally Signed.</p>
-                        <p style="margin-bottom: 0.25rem;"><span style="color: var(--text-muted)">Name:</span> ${data.name}</p>
-                        <p style="margin-bottom: 0.25rem;"><span style="color: var(--text-muted)">Date:</span> ${data.date}</p>
-                        <p style="margin-bottom: 0.25rem;"><span style="color: var(--text-muted)">Reason:</span> ${data.reason}</p>
-                        <p style="margin-bottom: 0.25rem;"><span style="color: var(--text-muted)">Location:</span> ${data.location}</p>
-                    </div>
-
-                    <div style="display: flex; gap: 1rem; justify-content: center; margin-top: 2rem; flex-wrap: wrap;">
-                        <button onclick="downloadStampedPdf()" class="btn btn-primary" style="display: flex; align-items: center; gap: 0.5rem; background: #6366f1;">
-                            <i data-lucide="shield-check"></i>
-                            Download Stamped PDF
-                        </button>
-                        <button onclick="downloadPdfReport()" class="btn btn-secondary" style="display: flex; align-items: center; gap: 0.5rem;">
-                            <i data-lucide="file-text"></i>
-                            View Report
-                        </button>
-                        <button onclick="location.reload()" class="btn btn-outline" style="border-color: rgba(255,255,255,0.2);">
-                            Verify Another
-                        </button>
-                    </div>
-                </div>
-            `;
-            
             lucide.createIcons();
         }
 
-        async function downloadStampedPdf() {
+        // ── Run verification ─────────────────────────────────────────────────
+        async function runVerification() {
             const file = fileInput.files[0];
             if (!file) return;
 
-            const formData = new FormData();
-            formData.append('file', file);
+            verifyBtn.disabled = true;
+            loader.style.display = 'block';
+            resultArea.style.display = 'none';
+            resultArea.innerHTML = '';
+            pdfViewerPanel.style.display = 'none';
+            
+            // Reset modal state
+            modalTitle.textContent = 'Verifying...';
+            modalTitle.style.color = '';
+            modalSubtitle.textContent = 'Checking digital signatures and stamping document...';
+            modalIcon.innerHTML = '';
+            modalIframe.src = 'about:blank';
+
+
+            const formDataJson   = new FormData(); formDataJson.append('file', file);
+            const formDataStamp  = new FormData(); formDataStamp.append('file', file);
 
             try {
-                loader.style.display = 'block';
-                const response = await fetch('/api/verify-stamp', {
-                    method: 'POST',
-                    body: formData
-                });
+                // Fire both requests in parallel
+                const [jsonResp, stampResp] = await Promise.all([
+                    fetch('/api/verify',       { method: 'POST', body: formDataJson }),
+                    fetch('/api/verify-stamp', { method: 'POST', body: formDataStamp })
+                ]);
 
-                if (!response.ok) throw new Error('Download failed');
+                // ── iText-stamped PDF viewer ──────────────────────────────
+                if (stampResp.ok) {
+                    const blob = await stampResp.blob();
+                    if (currentStampedUrl) URL.revokeObjectURL(currentStampedUrl);
+                    currentStampedUrl = URL.createObjectURL(blob);
+                    
+                    // Show in full-screen modal immediately
+                    modalIframe.src = currentStampedUrl;
+                    openModal();
+                    
+                    stampedIframe.src = currentStampedUrl;
+                    viewerFilename.textContent = 'stamped_' + file.name;
+                    // pdfViewerPanel.style.display = 'block'; // Keep inline hidden
+                }
 
-                const blob = await response.blob();
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `stamped_${file.name}`;
-                document.body.appendChild(a);
-                a.click();
-                window.URL.revokeObjectURL(url);
-                a.remove();
-            } catch (error) {
-                console.error(error);
-                alert('An error occurred during download.');
+
+                // ── JSON result card ──────────────────────────────────────
+                const data = await jsonResp.json();
+                renderResults(data, file.name);
+
+            } catch (err) {
+                console.error(err);
+                resultArea.style.display = 'block';
+                resultArea.innerHTML = `
+                    <div class="glass-card" style="padding:2rem;text-align:center;border:2px solid #ef4444;">
+                        <h3 style="color:#ef4444;">Connection Error</h3>
+                        <p style="color:var(--text-muted);margin-top:0.5rem;">Could not reach the server. Please ensure the application is running.</p>
+                    </div>`;
             } finally {
                 loader.style.display = 'none';
+                verifyBtn.disabled = false;
             }
         }
 
+        // ── Status icons — polygon SVGs matching iText drawBigTick / drawBigCross ─
+        function validTickSvg(size = 90) {
+            // Same 6-vertex polygon as PdfReportGenerator.drawBigTick
+            // Coordinated to center perfectly around (55, 55) in a 110x110 viewBox
+            const p = [
+                [29, 53.4],     // 0  left outer top
+                [43, 77.4],     // 1  bottom outer tip
+                [77.8, 39.4],   // 2  right outer top
+                [69.8, 32.6],   // 3  right inner top
+                [44.2, 64.6],   // 4  bottom inner tip
+                [36.2, 46.2]    // 5  left inner top
+            ];
+            const d = 5; // extrusion depth
+            const poly = pts => pts.map(([x,y]) => `${x},${y}`).join(' ');
+            const shadow = p.map(([x,y]) => [x+d, y+d]);
+            return `<svg viewBox="0 0 110 110" width="${size}" height="${size}" xmlns="http://www.w3.org/2000/svg" style="overflow:visible">
+                <polygon points="${poly(shadow)}" fill="#000" stroke="#000" stroke-width="1" stroke-linejoin="miter"/>
+                <polygon points="${poly(p)}"      fill="#1ebe46" stroke="#111" stroke-width="2.5" stroke-linejoin="miter"/>
+            </svg>`;
+        }
+
+
+        function unverifiedQuestionSvg(size = 90) {
+            // Chunky yellow ? with black 3D extrusion shadow
+            const d = 5;
+            // ? curve approx
+            // Points for shadow
+            const spts = "M30,40 C30,10 80,10 80,40 C80,60 55,65 55,80";
+            const dot = { x: 55, y: 95, r: 8 };
+
+            return `<svg viewBox="0 0 110 110" width="${size}" height="${size}" xmlns="http://www.w3.org/2000/svg" style="overflow:visible">
+                <!-- Shadow -->
+                <path d="${spts}" fill="none" stroke="#000" stroke-width="16" stroke-linecap="round" transform="translate(${d},${d})"/>
+                <circle cx="${dot.x + d}" cy="${dot.y + d}" r="${dot.r}" fill="#000"/>
+                
+                <!-- Main Shape -->
+                <path d="${spts}" fill="none" stroke="#f59e0b" stroke-width="14" stroke-linecap="round"/>
+                <circle cx="${dot.x}" cy="${dot.y}" r="${dot.r}" fill="#f59e0b" stroke="#000" stroke-width="2"/>
+            </svg>`;
+        }
+
+
+
+        // ── Render result card ───────────────────────────────────────────────
+        function renderResults(data, filename) {
+            resultArea.style.display = 'block';
+
+            const isValid    = data.valid;
+            const accent     = isValid ? '#10b981' : '#f59e0b'; // Green for tick, Amber for question mark
+            const iconSvg    = isValid ? validTickSvg() : unverifiedQuestionSvg();
+            const iconSvgSmall = isValid ? validTickSvg(32) : unverifiedQuestionSvg(32);
+            const title      = isValid ? 'Signature Valid' : 'Signature Not Verified';
+
+            const statusMsg  = data.statusMessage || (isValid ? 'The signature is mathematically valid.' : 'Signature could not be verified.');
+
+            // Update Full-screen modal banner
+            modalTitle.textContent = title;
+            modalTitle.style.color = accent;
+            
+            let bannerSubtitle = statusMsg;
+            if (isValid && data.name) {
+                bannerSubtitle = `Digitally signed by ${data.name}`;
+                if (data.date) bannerSubtitle += ` on ${data.date}`;
+            }
+            modalSubtitle.textContent = bannerSubtitle;
+            modalIcon.innerHTML = iconSvgSmall;
+
+            resultArea.innerHTML = `
+                <div class="glass-card" style="padding:2.5rem;text-align:center;border:2px solid ${accent};background:rgba(255,255,255,0.02);">
+
+                    <!-- Big status icon -->
+                    <div style="margin-bottom:1.25rem;display:flex;justify-content:center;">
+                        ${iconSvg}
+                    </div>
+
+                    <h2 style="font-size:1.8rem;margin-bottom:0.5rem;color:${accent};">${title}</h2>
+                    <p style="color:var(--text-muted);font-size:0.92rem;margin-bottom:1.75rem;">${statusMsg}</p>
+
+
+                    <!-- Details grid -->
+                    <div class="detail-grid">
+                        ${detailItem('Signer name', data.name)}
+                        ${detailItem('Signing date', data.date)}
+                        ${detailItem('Reason', data.reason)}
+                        ${detailItem('Location', data.location)}
+                    </div>
+
+                    <!-- Action buttons -->
+                    <div class="action-row">
+                        <button onclick="downloadStampedPdf()" class="btn btn-primary" style="display:flex;align-items:center;gap:0.5rem;background:#6366f1;">
+                            <i data-lucide="stamp" style="width:16px;height:16px;"></i>
+                            Download Stamped PDF
+                        </button>
+                        <button onclick="downloadPdfReport()" class="btn btn-secondary" style="display:flex;align-items:center;gap:0.5rem;">
+                            <i data-lucide="file-badge" style="width:16px;height:16px;"></i>
+                            Download Report
+                        </button>
+                        <button onclick="location.reload()" class="btn btn-outline" style="border-color:rgba(255,255,255,0.2);">
+                            Verify Another
+                        </button>
+                    </div>
+                </div>`;
+
+            lucide.createIcons();
+
+        }
+
+        function detailItem(label, value) {
+            return `<div class="detail-item">
+                        <div class="label">${label}</div>
+                        <div class="value">${value || 'N/A'}</div>
+                    </div>`;
+        }
+
+        // ── Download helpers ─────────────────────────────────────────────────
+        async function downloadStampedPdf() {
+            const file = fileInput.files[0]; if (!file) return;
+            await downloadBlob('/api/verify-stamp', file, 'stamped_' + file.name);
+        }
+
         async function downloadPdfReport() {
-            const file = fileInput.files[0];
-            if (!file) return;
+            const file = fileInput.files[0]; if (!file) return;
+            await downloadBlob('/api/verify-pdf', file, 'verification_report_' + Date.now() + '.pdf');
+        }
 
-            const formData = new FormData();
-            formData.append('file', file);
-
+        async function downloadBlob(endpoint, file, filename) {
+            const fd = new FormData(); fd.append('file', file);
             try {
                 loader.style.display = 'block';
-                const response = await fetch('/api/verify-pdf', {
-                    method: 'POST',
-                    body: formData
-                });
-
-                if (!response.ok) throw new Error('Download failed');
-
-                const blob = await response.blob();
-                const url = window.URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `verification_report_${new Date().getTime()}.pdf`;
-                document.body.appendChild(a);
-                a.click();
-                window.URL.revokeObjectURL(url);
-                a.remove();
-            } catch (error) {
-                console.error(error);
-                alert('An error occurred during report download.');
+                const resp = await fetch(endpoint, { method: 'POST', body: fd });
+                if (!resp.ok) throw new Error('Download failed');
+                const blob = await resp.blob();
+                const url  = URL.createObjectURL(blob);
+                const a    = Object.assign(document.createElement('a'), { href: url, download: filename });
+                document.body.appendChild(a); a.click();
+                URL.revokeObjectURL(url); a.remove();
+            } catch (e) {
+                console.error(e); alert('Download failed. See console for details.');
             } finally {
                 loader.style.display = 'none';
             }

@@ -6,15 +6,21 @@ public class VerificationResponseDTO {
     private String date;
     private String reason;
     private String location;
+    private String statusMessage;
 
     public VerificationResponseDTO() {}
 
     public VerificationResponseDTO(boolean valid, String name, String date, String reason, String location) {
+        this(valid, name, date, reason, location, null);
+    }
+
+    public VerificationResponseDTO(boolean valid, String name, String date, String reason, String location, String statusMessage) {
         this.valid = valid;
         this.name = name;
         this.date = date;
         this.reason = reason;
         this.location = location;
+        this.statusMessage = statusMessage;
     }
 
     // Getters and Setters
@@ -28,4 +34,6 @@ public class VerificationResponseDTO {
     public void setReason(String reason) { this.reason = reason; }
     public String getLocation() { return location; }
     public void setLocation(String location) { this.location = location; }
+    public String getStatusMessage() { return statusMessage; }
+    public void setStatusMessage(String statusMessage) { this.statusMessage = statusMessage; }
 }
