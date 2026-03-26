@@ -2,13 +2,16 @@ package com.admitcard.controller;
 
 import com.admitcard.dto.VerificationResponseDTO;
 import com.admitcard.service.SignatureVerificationService;
-import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
+import java.util.Locale;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api")
@@ -22,6 +25,24 @@ public class VerificationController {
             com.admitcard.util.PdfReportGenerator reportGenerator) {
         this.verificationService = verificationService;
         this.reportGenerator = reportGenerator;
+    }
+
+    /**
+     * POST /api/pdf-password-required
+     * Checks whether the uploaded PDF requires a password to open.
+     */
+    @PostMapping("/pdf-password-required")
+    public ResponseEntity<Map<String, Object>> checkPasswordRequirement(@RequestParam("file") MultipartFile file) {
+        try (InputStream is = file.getInputStream()) {
+            boolean passwordRequired = verificationService.isPasswordRequired(is);
+            return ResponseEntity.ok(Map.of("passwordRequired", passwordRequired));
+        } catch (Exception e) {
+            e.printStackTrace();
+            Map<String, Object> response = new HashMap<>();
+            response.put("passwordRequired", false);
+            response.put("message", resolveErrorMessage(e));
+            return ResponseEntity.status(resolveStatus(e)).body(response);
+        }
     }
 
     /**
@@ -56,7 +77,7 @@ public class VerificationController {
             return ResponseEntity.ok().headers(headers).body(pdfBytes);
         } catch (Exception e) {
             e.printStackTrace();
-            return ResponseEntity.internalServerError().build();
+            return buildBinaryErrorResponse(e);
         }
     }
 
@@ -80,7 +101,7 @@ public class VerificationController {
             return ResponseEntity.ok().headers(headers).body(stampedPdf);
         } catch (Exception e) {
             e.printStackTrace();
-            return ResponseEntity.internalServerError().build();
+            return buildBinaryErrorResponse(e);
         }
     }
 
@@ -99,14 +120,63 @@ public class VerificationController {
             return ResponseEntity.ok(result);
         } catch (Exception e) {
             e.printStackTrace();
+            HttpStatus status = resolveStatus(e);
             VerificationResponseDTO errorResponse = new VerificationResponseDTO(
                     false,
                     "Verification Error",
                     "N/A",
                     "N/A",
                     "N/A",
-                    "Verification failed: " + e.getMessage());
-            return ResponseEntity.internalServerError().body(errorResponse);
+                    resolveErrorMessage(e));
+            return ResponseEntity.status(status).body(errorResponse);
         }
+    }
+
+    private ResponseEntity<byte[]> buildBinaryErrorResponse(Exception exception) {
+        String message = resolveErrorMessage(exception);
+        HttpStatus status = resolveStatus(exception);
+
+        org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
+        headers.setContentType(org.springframework.http.MediaType.TEXT_PLAIN);
+
+        return ResponseEntity.status(status)
+                .headers(headers)
+                .body(message.getBytes(StandardCharsets.UTF_8));
+    }
+
+    private HttpStatus resolveStatus(Exception exception) {
+        return isPasswordRelatedError(exception) ? HttpStatus.BAD_REQUEST : HttpStatus.INTERNAL_SERVER_ERROR;
+    }
+
+    private String resolveErrorMessage(Exception exception) {
+        if (isPasswordRelatedError(exception)) {
+            return "This PDF is password-protected. Please provide the correct password and try again.";
+        }
+
+        String message = exception.getMessage();
+        if (message == null || message.isBlank()) {
+            return "Verification failed due to an unexpected server error.";
+        }
+        return "Verification failed: " + message;
+    }
+
+    private boolean isPasswordRelatedError(Throwable throwable) {
+        Throwable current = throwable;
+        while (current != null) {
+            String message = current.getMessage();
+            if (message != null) {
+                String normalized = message.toLowerCase(Locale.ROOT);
+                if (normalized.contains("bad user password")
+                        || normalized.contains("bad owner password")
+                        || normalized.contains("invalid password")
+                        || normalized.contains("owner password")
+                        || normalized.contains("password is required")
+                        || (normalized.contains("password") && normalized.contains("encrypted"))) {
+                    return true;
+                }
+            }
+            current = current.getCause();
+        }
+        return false;
     }
 }

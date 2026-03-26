@@ -75,6 +75,48 @@
             margin-bottom: 1.5rem;
         }
 
+        #password-row {
+            display: none;
+            margin: -0.25rem 0 1rem;
+            text-align: left;
+            background: rgba(99, 102, 241, 0.08);
+            border: 1px solid var(--card-border);
+            border-radius: 0.9rem;
+            padding: 0.95rem 1rem;
+        }
+
+        #password-row label {
+            display: block;
+            font-size: 0.8rem;
+            font-weight: 700;
+            letter-spacing: 0.01em;
+            margin-bottom: 0.45rem;
+            color: var(--text);
+        }
+
+        #pdf-password {
+            width: 100%;
+            border: 1px solid var(--card-border);
+            border-radius: 0.7rem;
+            background: rgba(15, 23, 42, 0.6);
+            color: #fff;
+            padding: 0.65rem 0.75rem;
+            font-size: 0.92rem;
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        #pdf-password:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+        }
+
+        .password-hint {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            margin-top: 0.45rem;
+        }
+
         #verify-btn {
             width: 100%;
             display: flex;
@@ -340,8 +382,8 @@
                     <i data-lucide="scan-line"
                         style="width:52px;height:52px;color:var(--primary);margin-bottom:1rem;"></i>
                     <h3>Click or Drag a PDF here</h3>
-                    <p style="color:var(--text-muted);margin-top:0.5rem;font-size:0.9rem;">Supports digitally signed PDF
-                        files</p>
+                    <p style="color:var(--text-muted);margin-top:0.5rem;font-size:0.9rem;">Supports digitally signed and
+                        password-protected PDFs</p>
                 </div>
 
                 <!-- Chosen-file state (hidden until file picked) -->
@@ -354,6 +396,13 @@
                     </div>
                     <span class="change-badge">Change</span>
                 </div>
+            </div>
+
+            <div id="password-row">
+                <label for="pdf-password">PDF Password</label>
+                <input type="password" id="pdf-password" autocomplete="current-password"
+                    placeholder="Enter the PDF password">
+                <p class="password-hint">This file is password-protected. Enter password to continue.</p>
             </div>
 
             <!-- Verify button (appears after file pick) -->
@@ -430,6 +479,8 @@
         const fileInput = document.getElementById('file-input');
         const resultArea = document.getElementById('result-area');
         const loader = document.getElementById('loader');
+        const passwordRow = document.getElementById('password-row');
+        const passwordInput = document.getElementById('pdf-password');
         const verifyBtnRow = document.getElementById('verify-btn-row');
         const verifyBtn = document.getElementById('verify-btn');
         const uploadDefault = document.getElementById('upload-default');
@@ -447,6 +498,9 @@
         const modalIcon = document.getElementById('modal-status-icon');
 
         let currentStampedUrl = null;
+        let hasStampedPreview = false;
+        let protectionChecked = false;
+        let passwordRequiredForFile = false;
 
         // ── Modal controls ───────────────────────────────────────────────────
         function openModal() {
@@ -459,6 +513,101 @@
             document.body.style.overflow = '';
         }
 
+        function getPdfPassword() {
+            return passwordInput.value || '';
+        }
+
+        function appendPasswordIfPresent(formData, password) {
+            if (password.length > 0) {
+                formData.append('password', password);
+            }
+        }
+
+        function escapeHtml(value) {
+            return String(value ?? '')
+                .replaceAll('&', '&amp;')
+                .replaceAll('<', '&lt;')
+                .replaceAll('>', '&gt;')
+                .replaceAll('"', '&quot;')
+                .replaceAll("'", '&#39;');
+        }
+
+        async function readErrorMessage(response) {
+            const payloadTooLargeMessage = 'Uploaded PDF is too large. Current maximum upload size is 25MB.';
+            const contentType = response.headers.get('content-type') || '';
+            if (contentType.includes('application/json')) {
+                const raw = await response.text();
+                if (!raw) {
+                    return response.status === 413
+                        ? payloadTooLargeMessage
+                        : `Request failed with status ${response.status}.`;
+                }
+                try {
+                    const payload = JSON.parse(raw);
+                    return payload.statusMessage || payload.message || payload.error || raw;
+                } catch (_) {
+                    return raw;
+                }
+            }
+            const text = await response.text();
+            if (text) {
+                return text;
+            }
+            return response.status === 413
+                ? payloadTooLargeMessage
+                : `Request failed with status ${response.status}.`;
+        }
+
+        async function parseVerificationPayload(response) {
+            const raw = await response.text();
+            let payload = null;
+
+            if (raw) {
+                try {
+                    payload = JSON.parse(raw);
+                } catch (_) {
+                    payload = null;
+                }
+            }
+
+            if (!payload || typeof payload !== 'object') {
+                payload = {
+                    valid: false,
+                    name: 'Verification Error',
+                    date: 'N/A',
+                    reason: 'N/A',
+                    location: 'N/A',
+                    statusMessage: response.ok
+                        ? 'Unexpected response from verification service.'
+                        : (raw || `Verification failed with status ${response.status}.`)
+                };
+            }
+
+            if (!response.ok && (!payload.statusMessage || payload.statusMessage.trim() === '')) {
+                payload.statusMessage = raw || `Verification failed with status ${response.status}.`;
+            }
+
+            return payload;
+        }
+
+        async function checkPdfPasswordRequirement(file) {
+            const formData = new FormData();
+            formData.append('file', file);
+
+            const response = await fetch('/api/pdf-password-required', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (!response.ok) {
+                const message = await readErrorMessage(response);
+                throw new Error(message);
+            }
+
+            const payload = await response.json();
+            return Boolean(payload.passwordRequired);
+        }
+
 
         // ── Drag & Drop ──────────────────────────────────────────────────────
         dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragging'); });
@@ -469,6 +618,12 @@
             setFile(e.dataTransfer.files[0]);
         });
         fileInput.addEventListener('change', e => setFile(e.target.files[0]));
+        passwordInput.addEventListener('keydown', e => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                runVerification();
+            }
+        });
 
         // ── File chosen ──────────────────────────────────────────────────────
         function setFile(file) {
@@ -489,7 +644,12 @@
             resultArea.style.display = 'none';
             resultArea.innerHTML = '';
             pdfViewerPanel.style.display = 'none';
+            passwordRow.style.display = 'none';
+            passwordInput.value = '';
             verifyBtnRow.style.display = 'block';
+            hasStampedPreview = false;
+            protectionChecked = false;
+            passwordRequiredForFile = false;
 
             lucide.createIcons();
         }
@@ -504,6 +664,7 @@
             resultArea.style.display = 'none';
             resultArea.innerHTML = '';
             pdfViewerPanel.style.display = 'none';
+            hasStampedPreview = false;
 
             // Reset modal state
             modalTitle.textContent = 'Verifying...';
@@ -512,22 +673,43 @@
             modalIcon.innerHTML = '';
             modalIframe.src = 'about:blank';
 
-
-            const formDataJson = new FormData(); formDataJson.append('file', file);
-            const formDataStamp = new FormData(); formDataStamp.append('file', file);
-
             try {
+                if (!protectionChecked) {
+                    passwordRequiredForFile = await checkPdfPasswordRequirement(file);
+                    protectionChecked = true;
+                }
+
+                if (passwordRequiredForFile) {
+                    passwordRow.style.display = 'block';
+                    if (!getPdfPassword()) {
+                        alert('This PDF is password-protected. Please enter the password and verify again.');
+                        passwordInput.focus();
+                        return;
+                    }
+                } else {
+                    passwordRow.style.display = 'none';
+                }
+
+                const password = getPdfPassword();
+                const formDataJson = new FormData(); formDataJson.append('file', file);
+                appendPasswordIfPresent(formDataJson, password);
+                const formDataStamp = new FormData(); formDataStamp.append('file', file);
+                appendPasswordIfPresent(formDataStamp, password);
+
                 // Fire both requests in parallel
                 const [jsonResp, stampResp] = await Promise.all([
                     fetch('/api/verify', { method: 'POST', body: formDataJson }),
                     fetch('/api/verify-stamp', { method: 'POST', body: formDataStamp })
                 ]);
 
+                let stampErrorMessage = null;
+
                 // ── iText-stamped PDF viewer ──────────────────────────────
                 if (stampResp.ok) {
                     const blob = await stampResp.blob();
                     if (currentStampedUrl) URL.revokeObjectURL(currentStampedUrl);
                     currentStampedUrl = URL.createObjectURL(blob);
+                    hasStampedPreview = true;
 
                     // Show in full-screen modal immediately
                     modalIframe.src = currentStampedUrl;
@@ -536,20 +718,37 @@
                     stampedIframe.src = currentStampedUrl;
                     viewerFilename.textContent = 'stamped_' + file.name;
                     // pdfViewerPanel.style.display = 'block'; // Keep inline hidden
+                } else {
+                    stampErrorMessage = await readErrorMessage(stampResp);
                 }
 
 
                 // ── JSON result card ──────────────────────────────────────
-                const data = await jsonResp.json();
-                renderResults(data, file.name);
+                const data = await parseVerificationPayload(jsonResp);
+                const statusText = (data.statusMessage || '').toLowerCase();
+                if (statusText.includes('password')) {
+                    passwordRequiredForFile = true;
+                    passwordRow.style.display = 'block';
+                    if (!getPdfPassword()) {
+                        passwordInput.focus();
+                    }
+                }
+                if (stampErrorMessage && stampErrorMessage.toLowerCase().includes('password')) {
+                    passwordRequiredForFile = true;
+                    passwordRow.style.display = 'block';
+                }
+                renderResults(data, file.name, stampErrorMessage);
 
             } catch (err) {
                 console.error(err);
+                const errorMessage = err && err.message
+                    ? err.message
+                    : 'Could not reach the server. Please ensure the application is running.';
                 resultArea.style.display = 'block';
                 resultArea.innerHTML = `
                     <div class="glass-card" style="padding:2rem;text-align:center;border:2px solid #ef4444;">
-                        <h3 style="color:#ef4444;">Connection Error</h3>
-                        <p style="color:var(--text-muted);margin-top:0.5rem;">Could not reach the server. Please ensure the application is running.</p>
+                        <h3 style="color:#ef4444;">Verification Error</h3>
+                        <p style="color:var(--text-muted);margin-top:0.5rem;">${escapeHtml(errorMessage)}</p>
                     </div>`;
             } finally {
                 loader.style.display = 'none';
@@ -601,7 +800,7 @@
 
 
         // ── Render result card ───────────────────────────────────────────────
-        function renderResults(data, filename) {
+        function renderResults(data, filename, stampIssue) {
             resultArea.style.display = 'block';
 
             const isValid = data.valid;
@@ -611,6 +810,9 @@
             const title = isValid ? 'Signature Valid' : 'Signature Not Verified';
 
             const statusMsg = data.statusMessage || (isValid ? 'The signature is mathematically valid.' : 'Signature could not be verified.');
+            const stampNote = stampIssue
+                ? `<p style="margin:0.75rem 0 1rem;color:#fbbf24;font-size:0.82rem;">Stamped PDF preview unavailable: ${stampIssue}</p>`
+                : '';
 
             // Update Full-screen modal banner
             modalTitle.textContent = title;
@@ -634,6 +836,7 @@
 
                     <h2 style="font-size:1.8rem;margin-bottom:0.5rem;color:${accent};">${title}</h2>
                     <p style="color:var(--text-muted);font-size:0.92rem;margin-bottom:1.75rem;">${statusMsg}</p>
+                    ${stampNote}
 
 
                     <!-- Details grid -->
@@ -646,7 +849,9 @@
 
                     <!-- Action buttons -->
                     <div class="action-row">
-                        <button onclick="downloadStampedPdf()" class="btn btn-primary" style="display:flex;align-items:center;gap:0.5rem;background:#6366f1;">
+                        <button onclick="downloadStampedPdf()" class="btn btn-primary"
+                            ${hasStampedPreview ? '' : 'disabled title="Stamped PDF unavailable for this password/file"'}
+                            style="display:flex;align-items:center;gap:0.5rem;background:#6366f1;${hasStampedPreview ? '' : 'opacity:0.55;cursor:not-allowed;'}">
                             <i data-lucide="stamp" style="width:16px;height:16px;"></i>
                             Download Stamped PDF
                         </button>
@@ -683,18 +888,29 @@
         }
 
         async function downloadBlob(endpoint, file, filename) {
+            if (passwordRequiredForFile && !getPdfPassword()) {
+                passwordRow.style.display = 'block';
+                alert('Password is required for this PDF. Please enter it and try again.');
+                passwordInput.focus();
+                return;
+            }
             const fd = new FormData(); fd.append('file', file);
+            appendPasswordIfPresent(fd, getPdfPassword());
             try {
                 loader.style.display = 'block';
                 const resp = await fetch(endpoint, { method: 'POST', body: fd });
-                if (!resp.ok) throw new Error('Download failed');
+                if (!resp.ok) {
+                    const message = await readErrorMessage(resp);
+                    throw new Error(message);
+                }
                 const blob = await resp.blob();
                 const url = URL.createObjectURL(blob);
                 const a = Object.assign(document.createElement('a'), { href: url, download: filename });
                 document.body.appendChild(a); a.click();
                 URL.revokeObjectURL(url); a.remove();
             } catch (e) {
-                console.error(e); alert('Download failed. See console for details.');
+                console.error(e);
+                alert(e.message || 'Download failed. See console for details.');
             } finally {
                 loader.style.display = 'none';
             }

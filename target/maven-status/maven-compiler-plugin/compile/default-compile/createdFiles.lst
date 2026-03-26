@@ -20,6 +20,7 @@ com\admitcard\controller\ScalarDocController.class
 com\admitcard\service\AdmitCardService.class
 com\admitcard\service\SignatureVerificationService.class
 com\admitcard\util\PdfGeneratorUtil.class
+com\admitcard\controller\GlobalExceptionHandler.class
 com\admitcard\controller\TemplateController.class
 com\admitcard\util\PdfReportGenerator.class
 com\admitcard\model\AdmitCardSession.class

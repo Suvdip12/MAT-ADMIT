@@ -66,6 +66,18 @@ public class SignatureVerificationService {
         return verifySignatures(pdfInputStream, null);
     }
 
+    public boolean isPasswordRequired(InputStream pdfInputStream) throws Exception {
+        try (PdfReader reader = new PdfReader(pdfInputStream);
+             PdfDocument ignored = new PdfDocument(reader)) {
+            return false;
+        } catch (Exception exception) {
+            if (isPasswordRelatedError(exception)) {
+                return true;
+            }
+            throw exception;
+        }
+    }
+
     public SignatureVerificationResult verifySignatures(InputStream pdfInputStream, byte[] password) throws Exception {
         ensureBouncyCastleProvider();
         SignatureVerificationResult result = new SignatureVerificationResult();
@@ -486,6 +498,26 @@ public class SignatureVerificationService {
     private void ensureBouncyCastleProvider() {
         // iText 8's bouncy-castle-adapter handles BC registration internally.
         // No manual provider registration needed.
+    }
+
+    private boolean isPasswordRelatedError(Throwable throwable) {
+        Throwable current = throwable;
+        while (current != null) {
+            String message = current.getMessage();
+            if (message != null) {
+                String normalized = message.toLowerCase(Locale.ROOT);
+                if (normalized.contains("bad user password")
+                        || normalized.contains("bad owner password")
+                        || normalized.contains("invalid password")
+                        || normalized.contains("owner password")
+                        || normalized.contains("password is required")
+                        || (normalized.contains("password") && normalized.contains("encrypted"))) {
+                    return true;
+                }
+            }
+            current = current.getCause();
+        }
+        return false;
     }
 
     /**

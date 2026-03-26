@@ -14,6 +14,7 @@ D:\CODING ZONE\Projects\New folder\admitcard-generator\src\main\java\com\admitca
 D:\CODING ZONE\Projects\New folder\admitcard-generator\src\main\java\com\admitcard\dto\StudentDataDTO.java
 D:\CODING ZONE\Projects\New folder\admitcard-generator\src\main\java\com\admitcard\repository\TemplateRepository.java
 D:\CODING ZONE\Projects\New folder\admitcard-generator\src\main\java\com\admitcard\AdmitCardApplication.java
+D:\CODING ZONE\Projects\New folder\admitcard-generator\src\main\java\com\admitcard\controller\GlobalExceptionHandler.java
 D:\CODING ZONE\Projects\New folder\admitcard-generator\src\main\java\com\admitcard\service\DocumentService.java
 D:\CODING ZONE\Projects\New folder\admitcard-generator\src\main\java\com\admitcard\controller\VerificationController.java
 D:\CODING ZONE\Projects\New folder\admitcard-generator\src\main\java\com\admitcard\controller\ScalarDocController.java
