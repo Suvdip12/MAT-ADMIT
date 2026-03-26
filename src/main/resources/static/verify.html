@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -25,10 +26,13 @@
             background: var(--card-bg);
             margin-bottom: 1.5rem;
         }
-        .upload-zone:hover, .upload-zone.dragging {
+
+        .upload-zone:hover,
+        .upload-zone.dragging {
             border-color: var(--primary);
             background: rgba(99, 102, 241, 0.08);
         }
+
         .upload-zone.has-file {
             padding: 1.25rem 2rem;
             display: flex;
@@ -38,14 +42,30 @@
             border-style: solid;
             border-color: var(--primary);
         }
-        .upload-zone.has-file .upload-icon-wrap { flex-shrink: 0; }
-        .upload-zone.has-file .upload-text h3 { font-size: 0.95rem; margin: 0 0 0.2rem; }
-        .upload-zone.has-file .upload-text p  { font-size: 0.8rem; margin: 0; color: var(--text-muted); }
+
+        .upload-zone.has-file .upload-icon-wrap {
+            flex-shrink: 0;
+        }
+
+        .upload-zone.has-file .upload-text h3 {
+            font-size: 0.95rem;
+            margin: 0 0 0.2rem;
+        }
+
+        .upload-zone.has-file .upload-text p {
+            font-size: 0.8rem;
+            margin: 0;
+            color: var(--text-muted);
+        }
+
         .upload-zone.has-file .change-badge {
-            margin-left: auto; flex-shrink: 0;
-            font-size: 0.75rem; padding: 0.3rem 0.7rem;
+            margin-left: auto;
+            flex-shrink: 0;
+            font-size: 0.75rem;
+            padding: 0.3rem 0.7rem;
             border: 1px solid var(--card-border);
-            border-radius: 999px; color: var(--text-muted);
+            border-radius: 999px;
+            color: var(--text-muted);
             cursor: pointer;
         }
 
@@ -54,6 +74,7 @@
             display: none;
             margin-bottom: 1.5rem;
         }
+
         #verify-btn {
             width: 100%;
             display: flex;
@@ -70,23 +91,41 @@
             border: none;
             color: #fff;
             transition: opacity 0.2s, transform 0.15s;
-            box-shadow: 0 4px 18px rgba(99,102,241,0.35);
+            box-shadow: 0 4px 18px rgba(99, 102, 241, 0.35);
         }
-        #verify-btn:hover  { opacity: 0.92; transform: translateY(-1px); }
-        #verify-btn:active { transform: translateY(0); }
-        #verify-btn:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
+
+        #verify-btn:hover {
+            opacity: 0.92;
+            transform: translateY(-1px);
+        }
+
+        #verify-btn:active {
+            transform: translateY(0);
+        }
+
+        #verify-btn:disabled {
+            opacity: 0.55;
+            cursor: not-allowed;
+            transform: none;
+        }
 
         /* ── Spinner ─────────────────────────────────────────────────────── */
         .loading-spinner {
             display: none;
             margin: 2rem auto;
-            width: 40px; height: 40px;
-            border: 4px solid rgba(255,255,255,0.1);
+            width: 40px;
+            height: 40px;
+            border: 4px solid rgba(255, 255, 255, 0.1);
             border-top: 4px solid var(--primary);
             border-radius: 50%;
             animation: spin 0.85s linear infinite;
         }
-        @keyframes spin { to { transform: rotate(360deg); } }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
 
         /* ── iText-stamped PDF viewer ────────────────────────────────────── */
         .pdf-viewer-panel {
@@ -97,14 +136,16 @@
             background: var(--card-bg);
             margin-bottom: 2rem;
         }
+
         .pdf-viewer-header {
             display: flex;
             align-items: center;
             gap: 0.75rem;
             padding: 0.85rem 1.25rem;
-            background: rgba(99,102,241,0.12);
+            background: rgba(99, 102, 241, 0.12);
             border-bottom: 1px solid var(--card-border);
         }
+
         .pdf-viewer-header .viewer-title {
             font-size: 0.85rem;
             font-weight: 700;
@@ -114,16 +155,18 @@
             overflow: hidden;
             text-overflow: ellipsis;
         }
+
         .pdf-viewer-header .badge-itext {
             font-size: 0.7rem;
             font-weight: 700;
-            background: linear-gradient(135deg,#6366f1,#8b5cf6);
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
             color: #fff;
             border-radius: 999px;
             padding: 0.2rem 0.65rem;
             letter-spacing: 0.04em;
             flex-shrink: 0;
         }
+
         .pdf-viewer-panel iframe {
             width: 100%;
             height: 580px;
@@ -141,27 +184,46 @@
         /* ── Details grid ────────────────────────────────────────────────── */
         /* ── Detail popover in modal ────────────────────────────────────────── */
         .modal-details-trigger {
-            font-size: 0.75rem; font-weight: 600; color: var(--primary);
-            cursor: pointer; text-decoration: underline; text-underline-offset: 3px;
-            padding: 0.4rem 0.8rem; border-radius: 0.5rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--primary);
+            cursor: pointer;
+            text-decoration: underline;
+            text-underline-offset: 3px;
+            padding: 0.4rem 0.8rem;
+            border-radius: 0.5rem;
             background: rgba(99, 102, 241, 0.1);
         }
-        .modal-details-trigger:hover { background: rgba(99, 102, 241, 0.2); }
+
+        .modal-details-trigger:hover {
+            background: rgba(99, 102, 241, 0.2);
+        }
 
         /* ── Full-screen Modal ───────────────────────────────────────────── */
         #pdf-fullscreen-modal {
             display: none;
             position: fixed;
-            top: 0; left: 0;
-            width: 100%; height: 100%;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
             z-index: 10000;
-            background: #0f172a; /* Deep dark background */
+            background: #0f172a;
+            /* Deep dark background */
             flex-direction: column;
             animation: modalFadeIn 0.3s ease-out;
         }
+
         @keyframes modalFadeIn {
-            from { opacity: 0; transform: scale(1.02); }
-            to { opacity: 1; transform: scale(1); }
+            from {
+                opacity: 0;
+                transform: scale(1.02);
+            }
+
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
         }
 
         .modal-header {
@@ -184,17 +246,37 @@
         }
 
         .modal-status-icon {
-            width: 40px; height: 40px;
-            display: flex; align-items: center; justify-content: center;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             flex-shrink: 0;
         }
 
-        .modal-status-text { text-align: left; }
-        .modal-status-title { font-size: 1.1rem; font-weight: 800; margin: 0; }
-        .modal-status-subtitle { font-size: 0.8rem; color: var(--text-muted); margin:0.1rem 0 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 400px; }
+        .modal-status-text {
+            text-align: left;
+        }
+
+        .modal-status-title {
+            font-size: 1.1rem;
+            font-weight: 800;
+            margin: 0;
+        }
+
+        .modal-status-subtitle {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin: 0.1rem 0 0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 400px;
+        }
 
         .modal-actions {
-            display: flex; gap: 0.6rem;
+            display: flex;
+            gap: 0.6rem;
             align-items: center;
         }
 
@@ -204,30 +286,41 @@
             background: #1e1b4b;
             overflow: hidden;
         }
+
         .modal-body iframe {
-            width: 100%; height: 100%;
+            width: 100%;
+            height: 100%;
             border: none;
             display: block;
         }
 
         .close-modal-btn {
-            background: rgba(255,255,255,0.05);
+            background: rgba(255, 255, 255, 0.05);
             border: 1px solid var(--card-border);
             color: #fff;
-            width: 36px; height: 36px;
+            width: 36px;
+            height: 36px;
             border-radius: 50%;
-            display: flex; align-items: center; justify-content: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             cursor: pointer;
             transition: all 0.2s;
         }
-        .close-modal-btn:hover { background: rgba(239, 68, 68, 0.2); border-color: #ef4444; color: #ef4444; }
 
+        .close-modal-btn:hover {
+            background: rgba(239, 68, 68, 0.2);
+            border-color: #ef4444;
+            color: #ef4444;
+        }
     </style>
 </head>
+
 <body>
     <div class="container">
         <nav>
-            <div class="logo"><a href="index.html" style="text-decoration:none;color:inherit;">Admit<span>Pro</span></a></div>
+            <div class="logo"><a href="index.html" style="text-decoration:none;color:inherit;">Admit<span>Pro</span></a>
+            </div>
             <div class="nav-links">
                 <a href="index.html" class="btn btn-outline">Home</a>
             </div>
@@ -235,7 +328,8 @@
 
         <div class="verify-container animate-fade-in">
             <h1 style="font-size:2.5rem;margin-bottom:0.75rem;">Signature Verification</h1>
-            <p class="subtitle" style="margin-bottom:2.5rem;">Upload a signed PDF — we'll stamp it with iText and verify the digital signature.</p>
+            <p class="subtitle" style="margin-bottom:2.5rem;">Upload a signed PDF — we'll stamp it with iText and verify
+                the digital signature.</p>
 
             <!-- Upload zone -->
             <div class="upload-zone glass-card" id="drop-zone" onclick="document.getElementById('file-input').click()">
@@ -243,13 +337,16 @@
 
                 <!-- Default state -->
                 <div id="upload-default">
-                    <i data-lucide="scan-line" style="width:52px;height:52px;color:var(--primary);margin-bottom:1rem;"></i>
+                    <i data-lucide="scan-line"
+                        style="width:52px;height:52px;color:var(--primary);margin-bottom:1rem;"></i>
                     <h3>Click or Drag a PDF here</h3>
-                    <p style="color:var(--text-muted);margin-top:0.5rem;font-size:0.9rem;">Supports digitally signed PDF files</p>
+                    <p style="color:var(--text-muted);margin-top:0.5rem;font-size:0.9rem;">Supports digitally signed PDF
+                        files</p>
                 </div>
 
                 <!-- Chosen-file state (hidden until file picked) -->
-                <div id="upload-chosen" style="display:none;width:100%;align-items:center;gap:1rem;" class="upload-icon-wrap">
+                <div id="upload-chosen" style="display:none;width:100%;align-items:center;gap:1rem;"
+                    class="upload-icon-wrap">
                     <i data-lucide="file-check-2" style="width:36px;height:36px;color:#10b981;flex-shrink:0;"></i>
                     <div class="upload-text">
                         <h3 id="chosen-name">document.pdf</h3>
@@ -289,22 +386,26 @@
     <!-- Full-Screen Modal Viewer -->
     <div id="pdf-fullscreen-modal">
         <div class="modal-header">
-            <div class="logo" style="font-size:1.1rem; margin-right: 1.5rem;"><a href="index.html" style="text-decoration:none;color:inherit;">Admit<span>Pro</span></a></div>
-            
+            <div class="logo" style="font-size:1.1rem; margin-right: 1.5rem;"><a href="index.html"
+                    style="text-decoration:none;color:inherit;">Admit<span>Pro</span></a></div>
+
             <div class="modal-status-banner" id="modal-status-banner">
                 <div class="modal-status-icon" id="modal-status-icon"></div>
                 <div class="modal-status-text">
                     <h2 class="modal-status-title" id="modal-status-title">Verifying...</h2>
-                    <p class="modal-status-subtitle" id="modal-status-subtitle">Please wait while we check the signature.</p>
+                    <p class="modal-status-subtitle" id="modal-status-subtitle">Please wait while we check the
+                        signature.</p>
                 </div>
             </div>
 
             <div class="modal-actions">
-                <button onclick="downloadStampedPdf()" class="btn btn-primary" style="padding: 0.45rem 0.9rem; font-size: 0.8rem;">
+                <button onclick="downloadStampedPdf()" class="btn btn-primary"
+                    style="padding: 0.45rem 0.9rem; font-size: 0.8rem;">
                     <i data-lucide="download" style="width:14px;height:14px;"></i>
                     Download PDF
                 </button>
-                <button onclick="downloadPdfReport()" class="btn btn-outline" style="padding: 0.45rem 0.9rem; font-size: 0.8rem;">
+                <button onclick="downloadPdfReport()" class="btn btn-outline"
+                    style="padding: 0.45rem 0.9rem; font-size: 0.8rem;">
                     <i data-lucide="file-badge" style="width:14px;height:14px;"></i>
                     Report
                 </button>
@@ -319,31 +420,31 @@
     </div>
 
 
-            <!-- Verification result -->
-            <div id="result-area" class="result-card"></div>
-        </div>
+    <!-- Verification result -->
+    <div id="result-area" class="result-card"></div>
+    </div>
     </div>
 
     <script>
-        const dropZone      = document.getElementById('drop-zone');
-        const fileInput     = document.getElementById('file-input');
-        const resultArea    = document.getElementById('result-area');
-        const loader        = document.getElementById('loader');
-        const verifyBtnRow  = document.getElementById('verify-btn-row');
-        const verifyBtn     = document.getElementById('verify-btn');
+        const dropZone = document.getElementById('drop-zone');
+        const fileInput = document.getElementById('file-input');
+        const resultArea = document.getElementById('result-area');
+        const loader = document.getElementById('loader');
+        const verifyBtnRow = document.getElementById('verify-btn-row');
+        const verifyBtn = document.getElementById('verify-btn');
         const uploadDefault = document.getElementById('upload-default');
-        const uploadChosen  = document.getElementById('upload-chosen');
-        const chosenName    = document.getElementById('chosen-name');
-        const chosenSize    = document.getElementById('chosen-size');
-        const pdfViewerPanel  = document.getElementById('pdf-viewer-panel');
-        const stampedIframe   = document.getElementById('stamped-pdf-iframe');
-        const viewerFilename  = document.getElementById('viewer-filename');
+        const uploadChosen = document.getElementById('upload-chosen');
+        const chosenName = document.getElementById('chosen-name');
+        const chosenSize = document.getElementById('chosen-size');
+        const pdfViewerPanel = document.getElementById('pdf-viewer-panel');
+        const stampedIframe = document.getElementById('stamped-pdf-iframe');
+        const viewerFilename = document.getElementById('viewer-filename');
 
         const fullscreenModal = document.getElementById('pdf-fullscreen-modal');
-        const modalIframe     = document.getElementById('modal-iframe');
-        const modalTitle      = document.getElementById('modal-status-title');
-        const modalSubtitle   = document.getElementById('modal-status-subtitle');
-        const modalIcon       = document.getElementById('modal-status-icon');
+        const modalIframe = document.getElementById('modal-iframe');
+        const modalTitle = document.getElementById('modal-status-title');
+        const modalSubtitle = document.getElementById('modal-status-subtitle');
+        const modalIcon = document.getElementById('modal-status-icon');
 
         let currentStampedUrl = null;
 
@@ -403,7 +504,7 @@
             resultArea.style.display = 'none';
             resultArea.innerHTML = '';
             pdfViewerPanel.style.display = 'none';
-            
+
             // Reset modal state
             modalTitle.textContent = 'Verifying...';
             modalTitle.style.color = '';
@@ -412,13 +513,13 @@
             modalIframe.src = 'about:blank';
 
 
-            const formDataJson   = new FormData(); formDataJson.append('file', file);
-            const formDataStamp  = new FormData(); formDataStamp.append('file', file);
+            const formDataJson = new FormData(); formDataJson.append('file', file);
+            const formDataStamp = new FormData(); formDataStamp.append('file', file);
 
             try {
                 // Fire both requests in parallel
                 const [jsonResp, stampResp] = await Promise.all([
-                    fetch('/api/verify',       { method: 'POST', body: formDataJson }),
+                    fetch('/api/verify', { method: 'POST', body: formDataJson }),
                     fetch('/api/verify-stamp', { method: 'POST', body: formDataStamp })
                 ]);
 
@@ -427,11 +528,11 @@
                     const blob = await stampResp.blob();
                     if (currentStampedUrl) URL.revokeObjectURL(currentStampedUrl);
                     currentStampedUrl = URL.createObjectURL(blob);
-                    
+
                     // Show in full-screen modal immediately
                     modalIframe.src = currentStampedUrl;
                     openModal();
-                    
+
                     stampedIframe.src = currentStampedUrl;
                     viewerFilename.textContent = 'stamped_' + file.name;
                     // pdfViewerPanel.style.display = 'block'; // Keep inline hidden
@@ -469,8 +570,8 @@
                 [36.2, 46.2]    // 5  left inner top
             ];
             const d = 5; // extrusion depth
-            const poly = pts => pts.map(([x,y]) => `${x},${y}`).join(' ');
-            const shadow = p.map(([x,y]) => [x+d, y+d]);
+            const poly = pts => pts.map(([x, y]) => `${x},${y}`).join(' ');
+            const shadow = p.map(([x, y]) => [x + d, y + d]);
             return `<svg viewBox="0 0 110 110" width="${size}" height="${size}" xmlns="http://www.w3.org/2000/svg" style="overflow:visible">
                 <polygon points="${poly(shadow)}" fill="#000" stroke="#000" stroke-width="1" stroke-linejoin="miter"/>
                 <polygon points="${poly(p)}"      fill="#1ebe46" stroke="#111" stroke-width="2.5" stroke-linejoin="miter"/>
@@ -503,18 +604,18 @@
         function renderResults(data, filename) {
             resultArea.style.display = 'block';
 
-            const isValid    = data.valid;
-            const accent     = isValid ? '#10b981' : '#f59e0b'; // Green for tick, Amber for question mark
-            const iconSvg    = isValid ? validTickSvg() : unverifiedQuestionSvg();
+            const isValid = data.valid;
+            const accent = isValid ? '#10b981' : '#f59e0b'; // Green for tick, Amber for question mark
+            const iconSvg = isValid ? validTickSvg() : unverifiedQuestionSvg();
             const iconSvgSmall = isValid ? validTickSvg(32) : unverifiedQuestionSvg(32);
-            const title      = isValid ? 'Signature Valid' : 'Signature Not Verified';
+            const title = isValid ? 'Signature Valid' : 'Signature Not Verified';
 
-            const statusMsg  = data.statusMessage || (isValid ? 'The signature is mathematically valid.' : 'Signature could not be verified.');
+            const statusMsg = data.statusMessage || (isValid ? 'The signature is mathematically valid.' : 'Signature could not be verified.');
 
             // Update Full-screen modal banner
             modalTitle.textContent = title;
             modalTitle.style.color = accent;
-            
+
             let bannerSubtitle = statusMsg;
             if (isValid && data.name) {
                 bannerSubtitle = `Digitally signed by ${data.name}`;
@@ -588,8 +689,8 @@
                 const resp = await fetch(endpoint, { method: 'POST', body: fd });
                 if (!resp.ok) throw new Error('Download failed');
                 const blob = await resp.blob();
-                const url  = URL.createObjectURL(blob);
-                const a    = Object.assign(document.createElement('a'), { href: url, download: filename });
+                const url = URL.createObjectURL(blob);
+                const a = Object.assign(document.createElement('a'), { href: url, download: filename });
                 document.body.appendChild(a); a.click();
                 URL.revokeObjectURL(url); a.remove();
             } catch (e) {
@@ -602,4 +703,5 @@
         lucide.createIcons();
     </script>
 </body>
+
 </html>

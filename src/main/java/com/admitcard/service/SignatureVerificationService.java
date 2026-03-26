@@ -7,6 +7,7 @@ import com.itextpdf.forms.fields.PdfFormField;
 import com.itextpdf.kernel.pdf.PdfPage;
 import com.itextpdf.kernel.pdf.PdfDocument;
 import com.itextpdf.kernel.pdf.PdfReader;
+import com.itextpdf.kernel.pdf.ReaderProperties;
 import com.itextpdf.kernel.pdf.PdfWriter;
 import com.itextpdf.kernel.pdf.canvas.PdfCanvas;
 
@@ -62,11 +63,15 @@ public class SignatureVerificationService {
     }
 
     public SignatureVerificationResult verifySignatures(InputStream pdfInputStream) throws Exception {
+        return verifySignatures(pdfInputStream, null);
+    }
+
+    public SignatureVerificationResult verifySignatures(InputStream pdfInputStream, byte[] password) throws Exception {
         ensureBouncyCastleProvider();
         SignatureVerificationResult result = new SignatureVerificationResult();
         List<SignatureVerificationResult.SignatureInfo> signatureInfos = new ArrayList<>();
         
-        try (PdfReader reader = new PdfReader(pdfInputStream);
+        try (PdfReader reader = buildPdfReader(pdfInputStream, password);
              PdfDocument pdfDoc = new PdfDocument(reader)) {
             
             SignatureUtil signUtil = new SignatureUtil(pdfDoc);
@@ -183,9 +188,13 @@ public class SignatureVerificationService {
     }
 
     public byte[] verifyAndStampPdf(InputStream pdfInputStream) throws Exception {
+        return verifyAndStampPdf(pdfInputStream, null);
+    }
+
+    public byte[] verifyAndStampPdf(InputStream pdfInputStream, byte[] password) throws Exception {
         byte[] inputBytes = pdfInputStream.readAllBytes();
         SignatureVerificationResult verificationResult =
-                verifySignatures(new java.io.ByteArrayInputStream(inputBytes));
+                verifySignatures(new java.io.ByteArrayInputStream(inputBytes), password);
 
         Map<String, SignatureVerificationResult.SignatureInfo> signatureInfoByName = new HashMap<>();
         for (SignatureVerificationResult.SignatureInfo signatureInfo : verificationResult.signatures) {
@@ -194,7 +203,7 @@ public class SignatureVerificationService {
 
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
 
-        try (PdfReader sourceReader = new PdfReader(new java.io.ByteArrayInputStream(inputBytes));
+        try (PdfReader sourceReader = buildPdfReader(new java.io.ByteArrayInputStream(inputBytes), password);
              PdfDocument sourcePdf = new PdfDocument(sourceReader);
              PdfWriter writer = new PdfWriter(baos);
              PdfDocument stampedPdf = new PdfDocument(writer)) {
@@ -418,7 +427,11 @@ public class SignatureVerificationService {
     }
 
     public VerificationResponseDTO verifySingleSignature(InputStream is) throws Exception {
-        SignatureVerificationResult result = verifySignatures(is);
+        return verifySingleSignature(is, null);
+    }
+
+    public VerificationResponseDTO verifySingleSignature(InputStream is, byte[] password) throws Exception {
+        SignatureVerificationResult result = verifySignatures(is, password);
         
         if (!result.hasSignatures || result.signatures.isEmpty()) {
             return new VerificationResponseDTO(
@@ -473,5 +486,17 @@ public class SignatureVerificationService {
     private void ensureBouncyCastleProvider() {
         // iText 8's bouncy-castle-adapter handles BC registration internally.
         // No manual provider registration needed.
+    }
+
+    /**
+     * Builds a PdfReader, optionally with a password for encrypted/password-protected PDFs.
+     * When password is null or empty, opens the PDF without a password (existing behaviour).
+     */
+    private PdfReader buildPdfReader(InputStream inputStream, byte[] password) throws java.io.IOException {
+        if (password != null && password.length > 0) {
+            ReaderProperties props = new ReaderProperties().setPassword(password);
+            return new PdfReader(inputStream, props);
+        }
+        return new PdfReader(inputStream);
     }
 }

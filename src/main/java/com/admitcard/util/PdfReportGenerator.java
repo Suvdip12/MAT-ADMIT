@@ -56,7 +56,6 @@ public class PdfReportGenerator {
             drawBigQuestionMark(canvas, centerX, centerY, 60);
         }
 
-
         // Spacer so layout text flows below the icon area
         document.add(new Paragraph("\n\n\n\n\n\n"));
 
@@ -144,9 +143,8 @@ public class PdfReportGenerator {
                 { x + s * 0.57f, y + s * 0.39f }, // 2 right outer top
                 { x + s * 0.37f, y + s * 0.56f }, // 3 right inner top
                 { x - s * 0.27f, y - s * 0.24f }, // 4 bottom inner tip
-                { x - s * 0.47f, y + s * 0.22f }  // 5 left inner top
+                { x - s * 0.47f, y + s * 0.22f } // 5 left inner top
         };
-
 
         // ── 1. Solid black 3-D extrusion shadow (bottom-right) ──────────────
         // Each iteration paints a filled + stroked copy of the tick shifted
@@ -198,11 +196,11 @@ public class PdfReportGenerator {
 
         // Curve points
         float[][] q = {
-            { x - s * 0.4f, y + s * 0.2f },
-            { x - s * 0.4f, y + s * 0.6f },
-            { x + s * 0.4f, y + s * 0.6f },
-            { x + s * 0.4f, y + s * 0.2f },
-            { x + s * 0.1f, y - s * 0.1f }
+                { x - s * 0.4f, y + s * 0.2f },
+                { x - s * 0.4f, y + s * 0.6f },
+                { x + s * 0.4f, y + s * 0.6f },
+                { x + s * 0.4f, y + s * 0.2f },
+                { x + s * 0.1f, y - s * 0.1f }
         };
 
         float shadowDepth = s * 0.10f;
@@ -210,7 +208,7 @@ public class PdfReportGenerator {
         // ── 2. Shadow (Extrusion) ───────────────────────────────────────────
         canvas.setFillColor(black);
         canvas.setStrokeColor(black);
-        
+
         for (float d = 1f; d <= shadowDepth; d += 1.0f) {
             // Shadow curve
             canvas.setLineWidth(s * 0.25f);
@@ -218,7 +216,7 @@ public class PdfReportGenerator {
             canvas.curveTo(q[1][0] + d, q[1][1] - d, q[2][0] + d, q[2][1] - d, q[3][0] + d, q[3][1] - d);
             canvas.lineTo(q[4][0] + d, q[4][1] - d);
             canvas.stroke();
-            
+
             // Shadow dot
             canvas.circle(dotX + d, dotY - d, dotR);
             canvas.fill();
@@ -242,11 +240,11 @@ public class PdfReportGenerator {
         // ── 4. Black Outlines ───────────────────────────────────────────────
         canvas.setStrokeColor(black);
         canvas.setLineWidth(2.0f);
-        
+
         // Outline for dot
         canvas.circle(dotX, dotY, dotR);
         canvas.stroke();
-        
+
         // (Curve outline is harder with simple stroke, but let's add a thin one)
         canvas.setLineWidth(1.0f);
         canvas.moveTo(q[0][0], q[0][1]);
