@@ -145,12 +145,18 @@ public class VerificationController {
     }
 
     private HttpStatus resolveStatus(Exception exception) {
-        return isPasswordRelatedError(exception) ? HttpStatus.BAD_REQUEST : HttpStatus.INTERNAL_SERVER_ERROR;
+        if (isPasswordRelatedError(exception) || isNoSignatureError(exception)) {
+            return HttpStatus.BAD_REQUEST;
+        }
+        return HttpStatus.INTERNAL_SERVER_ERROR;
     }
 
     private String resolveErrorMessage(Exception exception) {
         if (isPasswordRelatedError(exception)) {
             return "This PDF is password-protected. Please provide the correct password and try again.";
+        }
+        if (isNoSignatureError(exception)) {
+            return "No signature found in this PDF. Stamped PDF can be generated only for digitally signed documents.";
         }
 
         String message = exception.getMessage();
@@ -158,6 +164,22 @@ public class VerificationController {
             return "Verification failed due to an unexpected server error.";
         }
         return "Verification failed: " + message;
+    }
+
+    private boolean isNoSignatureError(Throwable throwable) {
+        Throwable current = throwable;
+        while (current != null) {
+            String message = current.getMessage();
+            if (message != null) {
+                String normalized = message.toLowerCase(Locale.ROOT);
+                if (normalized.contains("no signature found")
+                        || normalized.contains("does not contain any digital signatures")) {
+                    return true;
+                }
+            }
+            current = current.getCause();
+        }
+        return false;
     }
 
     private boolean isPasswordRelatedError(Throwable throwable) {

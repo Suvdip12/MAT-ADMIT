@@ -49,14 +49,20 @@ public class SignatureVerificationService {
     private static final float ADOBE_META_FONT = 7.6f;
     private static final float ADOBE_META_BASELINE = 32.4f;
     private static final float ADOBE_META_LEADING = 7.6f;
-    private static final float ADOBE_VALID_TICK_CENTER_X = 82f;
-    private static final float ADOBE_VALID_TICK_CENTER_Y = 26f;
+    private static final float ADOBE_VALID_TICK_CENTER_X = 57f;
+    private static final float ADOBE_VALID_TICK_CENTER_Y = 31f;
     private static final float ADOBE_VALID_TICK_SIZE = 34f;
+    private static final float ADOBE_VALID_TICK_IMAGE_SCALE = 1.84f;
+    // tick_valid.png includes transparent padding, so we anchor by visible-pixel center instead of raw image center.
+    private static final float ADOBE_VALID_TICK_VISIBLE_CENTER_X = 0.533f;
+    private static final float ADOBE_VALID_TICK_VISIBLE_CENTER_Y = 0.544f;
     private static final float ADOBE_INVALID_ICON_X = 75f;
     private static final float ADOBE_INVALID_ICON_Y = 7f;
     private static final float ADOBE_INVALID_ICON_SIZE = 43f;
+    private static final String ADOBE_INVALID_ICON_TEXT = "?";
 
     private final PdfSigningService pdfSigningService;
+    private volatile ImageData tickImageData;
 
     public SignatureVerificationService(PdfSigningService pdfSigningService) {
         this.pdfSigningService = pdfSigningService;
@@ -208,6 +214,10 @@ public class SignatureVerificationService {
         SignatureVerificationResult verificationResult =
                 verifySignatures(new java.io.ByteArrayInputStream(inputBytes), password);
 
+        if (!verificationResult.hasSignatures || verificationResult.signatures.isEmpty()) {
+            throw new IllegalStateException("No signature found in this PDF. Stamped PDF is available only for digitally signed documents.");
+        }
+
         Map<String, SignatureVerificationResult.SignatureInfo> signatureInfoByName = new HashMap<>();
         for (SignatureVerificationResult.SignatureInfo signatureInfo : verificationResult.signatures) {
             signatureInfoByName.put(signatureInfo.signatureName, signatureInfo);
@@ -317,6 +327,11 @@ public class SignatureVerificationService {
         canvas.fill();
 
         PdfFont font = PdfFontFactory.createFont(StandardFonts.HELVETICA);
+        PdfFont iconFont = PdfFontFactory.createFont(StandardFonts.HELVETICA_BOLD);
+
+        float invalidIconX = x + width * (ADOBE_INVALID_ICON_X / ADOBE_BADGE_WIDTH);
+        float invalidIconY = y + height * (ADOBE_INVALID_ICON_Y / ADOBE_BADGE_HEIGHT);
+        float invalidIconSize = scaleByAdobeReference(width, height, ADOBE_INVALID_ICON_SIZE, ADOBE_INVALID_ICON_SIZE);
 
         if (isValid) {
             drawAdobeTick(
@@ -328,9 +343,10 @@ public class SignatureVerificationService {
         } else {
             drawAdobeQuestionMark(
                     canvas,
-                    x + width * (ADOBE_INVALID_ICON_X / ADOBE_BADGE_WIDTH),
-                    y + height * (ADOBE_INVALID_ICON_Y / ADOBE_BADGE_HEIGHT),
-                    scaleByAdobeReference(width, height, ADOBE_INVALID_ICON_SIZE, ADOBE_INVALID_ICON_SIZE)
+                    iconFont,
+                    invalidIconX,
+                    invalidIconY,
+                    invalidIconSize
             );
         }
 
@@ -347,11 +363,26 @@ public class SignatureVerificationService {
         float metaBaseline = scaleByAdobeReference(width, height, ADOBE_META_BASELINE, ADOBE_META_BASELINE);
         float leading = scaleByAdobeReference(width, height, ADOBE_META_LEADING, ADOBE_META_LEADING);
 
-        drawBadgeLine(canvas, font, metaSize, x + leftInset, y + metaBaseline, "Digitally Signed.");
-        drawBadgeLine(canvas, font, metaSize, x + leftInset, y + metaBaseline - leading, "Name: " + extractDisplayName(signatureInfo.signerName));
-        drawBadgeLine(canvas, font, metaSize, x + leftInset, y + metaBaseline - leading * 2, "Date: " + safeDisplayValue(signatureInfo.signingDate));
-        drawBadgeLine(canvas, font, metaSize, x + leftInset, y + metaBaseline - leading * 3, "Reason: " + safeDisplayValue(signatureInfo.reason));
-        drawBadgeLine(canvas, font, metaSize, x + leftInset, y + metaBaseline - leading * 4, "Location: " + safeDisplayValue(signatureInfo.location));
+        List<String> detailLines = new ArrayList<>();
+        detailLines.add("Digitally Signed.");
+
+        String displayName = extractDisplayName(signatureInfo.signerName);
+        if (hasDisplayValue(displayName) && !"Unknown".equalsIgnoreCase(displayName)) {
+            detailLines.add("Name: " + displayName);
+        }
+        if (hasDisplayValue(signatureInfo.signingDate)) {
+            detailLines.add("Date: " + signatureInfo.signingDate.trim());
+        }
+        if (hasDisplayValue(signatureInfo.reason)) {
+            detailLines.add("Reason: " + signatureInfo.reason.trim());
+        }
+        if (hasDisplayValue(signatureInfo.location)) {
+            detailLines.add("Location: " + signatureInfo.location.trim());
+        }
+
+        for (int i = 0; i < detailLines.size(); i++) {
+            drawBadgeLine(canvas, font, metaSize, x + leftInset, y + metaBaseline - leading * i, detailLines.get(i));
+        }
 
         canvas.restoreState();
     }
@@ -387,8 +418,12 @@ public class SignatureVerificationService {
         return signerName;
     }
 
-    private String safeDisplayValue(String value) {
-        return value == null || value.isBlank() ? "N/A" : value;
+    private boolean hasDisplayValue(String value) {
+        if (value == null) {
+            return false;
+        }
+        String normalized = value.trim();
+        return !normalized.isBlank() && !"N/A".equalsIgnoreCase(normalized);
     }
 
     /**
@@ -402,18 +437,14 @@ public class SignatureVerificationService {
      */
     private void drawAdobeTick(PdfCanvas canvas, float cx, float cy, float size) {
         try {
-            // Load the image from classpath
-            byte[] imageBytes = StreamUtil.inputStreamToArray(
-                    getClass().getResourceAsStream("/images/tick_valid.png"));
-            ImageData imageData = ImageDataFactory.create(imageBytes);
-            
-            // Calculate position to center the image at (cx, cy)
-            // Image size is 'size * 2' to match the polygon's scale
-            float imgWidth = size * 2.5f;
-            float imgHeight = size * 2.5f;
-            float x = cx - (imgWidth / 2f);
-            float y = cy - (imgHeight / 2f);
-            
+            ImageData imageData = getTickImageData();
+            float imgWidth = size * ADOBE_VALID_TICK_IMAGE_SCALE;
+            float imgHeight = size * ADOBE_VALID_TICK_IMAGE_SCALE;
+
+            // Anchor against the visible glyph center, not the full PNG bounds.
+            float x = cx - (imgWidth * ADOBE_VALID_TICK_VISIBLE_CENTER_X);
+            float y = cy - (imgHeight * ADOBE_VALID_TICK_VISIBLE_CENTER_Y);
+
             // iText 8 PdfCanvas uses transformation matrix for scaling
             canvas.addImageWithTransformationMatrix(imageData, imgWidth, 0, 0, imgHeight, x, y, false);
         } catch (Exception e) {
@@ -427,14 +458,32 @@ public class SignatureVerificationService {
         }
     }
 
-    private void drawAdobeQuestionMark(PdfCanvas canvas, float cx, float cy, float size) throws Exception {
-        PdfFont boldFont = PdfFontFactory.createFont(StandardFonts.HELVETICA_BOLD);
+    private ImageData getTickImageData() throws Exception {
+        ImageData cached = tickImageData;
+        if (cached != null) {
+            return cached;
+        }
+
+        synchronized (this) {
+            if (tickImageData == null) {
+                try (InputStream tickStream = getClass().getResourceAsStream("/images/tick_valid.png")) {
+                    if (tickStream == null) {
+                        throw new IllegalStateException("Missing /images/tick_valid.png");
+                    }
+                    tickImageData = ImageDataFactory.create(StreamUtil.inputStreamToArray(tickStream));
+                }
+            }
+            return tickImageData;
+        }
+    }
+
+    private void drawAdobeQuestionMark(PdfCanvas canvas, PdfFont boldFont, float cx, float cy, float size) {
         float shadowOffset = Math.max(1.2f, size * 0.04f);
         canvas.saveState();
         canvas.setFillColor(new DeviceRgb(0, 0, 0));
-        canvas.beginText().setFontAndSize(boldFont, size).moveText(cx + shadowOffset, cy - shadowOffset).showText("?").endText();
+        canvas.beginText().setFontAndSize(boldFont, size).moveText(cx + shadowOffset, cy - shadowOffset).showText(ADOBE_INVALID_ICON_TEXT).endText();
         canvas.setFillColor(new DeviceRgb(255, 220, 0));
-        canvas.beginText().setFontAndSize(boldFont, size).moveText(cx, cy).showText("?").endText();
+        canvas.beginText().setFontAndSize(boldFont, size).moveText(cx, cy).showText(ADOBE_INVALID_ICON_TEXT).endText();
         canvas.restoreState();
     }
 
@@ -449,9 +498,9 @@ public class SignatureVerificationService {
             return new VerificationResponseDTO(
                     false,
                     "No signature found",
-                    "N/A",
-                    "N/A",
-                    "N/A",
+                    null,
+                    null,
+                    null,
                     "Document does not contain any digital signatures."
             );
         }
@@ -470,11 +519,18 @@ public class SignatureVerificationService {
         return new VerificationResponseDTO(
                 sig.isValid,
                 displayName,
-                sig.signingDate,
-                sig.reason != null ? sig.reason : "N/A",
-                sig.location != null ? sig.location : "N/A",
+                normalizeOptional(sig.signingDate),
+                normalizeOptional(sig.reason),
+                normalizeOptional(sig.location),
                 sig.message != null ? sig.message : (sig.isValid ? "Signature Valid" : "Signature Not Verified")
         );
+    }
+
+    private String normalizeOptional(String value) {
+        if (!hasDisplayValue(value)) {
+            return null;
+        }
+        return value.trim();
     }
 
     private SignatureVerificationResult.SignatureInfo selectBestSignature(

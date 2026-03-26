@@ -549,10 +549,54 @@
         const modalIcon = document.getElementById('modal-status-icon');
 
         let currentStampedUrl = null;
+        let currentStampedBlob = null;
+        let currentStampedFilename = null;
         let hasStampedPreview = false;
         let protectionChecked = false;
         let passwordRequiredForFile = false;
         let activePasswordResolver = null;
+
+        function isMobileClient() {
+            return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '');
+        }
+
+        function clearStampedState() {
+            if (currentStampedUrl) {
+                URL.revokeObjectURL(currentStampedUrl);
+            }
+            currentStampedUrl = null;
+            currentStampedBlob = null;
+            currentStampedFilename = null;
+            hasStampedPreview = false;
+            stampedIframe.src = 'about:blank';
+            modalIframe.src = 'about:blank';
+        }
+
+        function triggerBlobDownload(blob, filename) {
+            const url = URL.createObjectURL(blob);
+            const anchor = Object.assign(document.createElement('a'), {
+                href: url,
+                download: filename
+            });
+            document.body.appendChild(anchor);
+            anchor.click();
+            anchor.remove();
+            setTimeout(() => URL.revokeObjectURL(url), 1000);
+        }
+
+        function hasMeaningfulValue(value) {
+            if (value === null || value === undefined) return false;
+            const normalized = String(value).trim();
+            return normalized !== '' && normalized.toLowerCase() !== 'n/a';
+        }
+
+        function isNoSignatureResult(data) {
+            const statusText = (data?.statusMessage || '').toLowerCase();
+            const nameText = (data?.name || '').toLowerCase();
+            return statusText.includes('no signature')
+                || statusText.includes('no digital signatures')
+                || nameText.includes('no signature found');
+        }
 
         // ── Modal controls ───────────────────────────────────────────────────
         function openModal() {
@@ -749,7 +793,7 @@
             closePasswordPopup();
             passwordInput.value = '';
             verifyBtnRow.style.display = 'block';
-            hasStampedPreview = false;
+            clearStampedState();
             protectionChecked = false;
             passwordRequiredForFile = false;
 
@@ -766,7 +810,7 @@
             resultArea.style.display = 'none';
             resultArea.innerHTML = '';
             pdfViewerPanel.style.display = 'none';
-            hasStampedPreview = false;
+            clearStampedState();
 
             // Reset modal state
             modalTitle.textContent = 'Verifying...';
@@ -792,43 +836,14 @@
                 }
 
                 const password = getPdfPassword();
-                const formDataJson = new FormData(); formDataJson.append('file', file);
+                const formDataJson = new FormData();
+                formDataJson.append('file', file);
                 appendPasswordIfPresent(formDataJson, password);
-                const formDataStamp = new FormData(); formDataStamp.append('file', file);
-                appendPasswordIfPresent(formDataStamp, password);
 
-                // Fire both requests in parallel
-                const [jsonResp, stampResp] = await Promise.all([
-                    fetch('/api/verify', { method: 'POST', body: formDataJson }),
-                    fetch('/api/verify-stamp', { method: 'POST', body: formDataStamp })
-                ]);
-
-                let stampErrorMessage = null;
-
-                // ── iText-stamped PDF viewer ──────────────────────────────
-                if (stampResp.ok) {
-                    const blob = await stampResp.blob();
-                    if (currentStampedUrl) URL.revokeObjectURL(currentStampedUrl);
-                    currentStampedUrl = URL.createObjectURL(blob);
-                    hasStampedPreview = true;
-
-                    // Show in full-screen modal immediately
-                    modalIframe.src = currentStampedUrl;
-                    openModal();
-
-                    stampedIframe.src = currentStampedUrl;
-                    viewerFilename.textContent = 'stamped_' + file.name;
-                    // pdfViewerPanel.style.display = 'block'; // Keep inline hidden
-                } else {
-                    stampErrorMessage = await readErrorMessage(stampResp);
-                }
-
-
-                // ── JSON result card ──────────────────────────────────────
+                const jsonResp = await fetch('/api/verify', { method: 'POST', body: formDataJson });
                 const data = await parseVerificationPayload(jsonResp);
                 const statusText = (data.statusMessage || '').toLowerCase();
-                const hasPasswordError = statusText.includes('password')
-                    || (stampErrorMessage && stampErrorMessage.toLowerCase().includes('password'));
+                const hasPasswordError = statusText.includes('password');
                 if (hasPasswordError) {
                     passwordRequiredForFile = true;
                     const attemptedPassword = !!(password && password.trim().length);
@@ -844,6 +859,43 @@
                     }
                     return;
                 }
+
+                if (!jsonResp.ok) {
+                    throw new Error(data.statusMessage || `Verification failed with status ${jsonResp.status}.`);
+                }
+
+                const noSignatureFound = isNoSignatureResult(data);
+                let stampErrorMessage = null;
+
+                if (!noSignatureFound) {
+                    const formDataStamp = new FormData();
+                    formDataStamp.append('file', file);
+                    appendPasswordIfPresent(formDataStamp, password);
+                    const stampResp = await fetch('/api/verify-stamp', { method: 'POST', body: formDataStamp });
+
+                    if (stampResp.ok) {
+                        currentStampedBlob = await stampResp.blob();
+                        currentStampedFilename = 'stamped_' + file.name;
+                        hasStampedPreview = true;
+
+                        if (isMobileClient()) {
+                            // Mobile browsers are more stable with direct download than iframe PDF streaming.
+                            closeModal();
+                            triggerBlobDownload(currentStampedBlob, currentStampedFilename);
+                        } else {
+                            if (currentStampedUrl) URL.revokeObjectURL(currentStampedUrl);
+                            currentStampedUrl = URL.createObjectURL(currentStampedBlob);
+                            modalIframe.src = currentStampedUrl;
+                            openModal();
+                            stampedIframe.src = currentStampedUrl;
+                            viewerFilename.textContent = currentStampedFilename;
+                        }
+                    } else {
+                        stampErrorMessage = await readErrorMessage(stampResp);
+                        hasStampedPreview = false;
+                    }
+                }
+
                 renderResults(data, file.name, stampErrorMessage);
 
             } catch (err) {
@@ -862,7 +914,6 @@
                 verifyBtn.disabled = false;
             }
         }
-
         // ── Status icons — polygon SVGs matching iText drawBigTick / drawBigCross ─
         function validTickSvg(size = 90) {
             // Same 6-vertex polygon as PdfReportGenerator.drawBigTick
@@ -911,15 +962,27 @@
             resultArea.style.display = 'block';
 
             const isValid = data.valid;
+            const noSignatureFound = isNoSignatureResult(data);
             const accent = isValid ? '#10b981' : '#f59e0b'; // Green for tick, Amber for question mark
             const iconSvg = isValid ? validTickSvg() : unverifiedQuestionSvg();
             const iconSvgSmall = isValid ? validTickSvg(32) : unverifiedQuestionSvg(32);
-            const title = isValid ? 'Signature Valid' : 'Signature Not Verified';
+            const title = noSignatureFound
+                ? 'No Signature Found'
+                : (isValid ? 'Signature Valid' : 'Signature Not Verified');
 
             const statusMsg = data.statusMessage || (isValid ? 'The signature is mathematically valid.' : 'Signature could not be verified.');
             const stampNote = stampIssue
                 ? `<p style="margin:0.75rem 0 1rem;color:#fbbf24;font-size:0.82rem;">Stamped PDF preview unavailable: ${stampIssue}</p>`
                 : '';
+            const detailsHtml = [
+                detailItem('Signer name', data.name),
+                detailItem('Signing date', data.date),
+                detailItem('Reason', data.reason),
+                detailItem('Location', data.location)
+            ].join('');
+            const stampButtonTitle = noSignatureFound
+                ? 'No signature found. Stamped PDF is not generated.'
+                : 'Stamped PDF unavailable for this password/file';
 
             // Update Full-screen modal banner
             modalTitle.textContent = title;
@@ -947,17 +1010,12 @@
 
 
                     <!-- Details grid -->
-                    <div class="detail-grid">
-                        ${detailItem('Signer name', data.name)}
-                        ${detailItem('Signing date', data.date)}
-                        ${detailItem('Reason', data.reason)}
-                        ${detailItem('Location', data.location)}
-                    </div>
+                    ${detailsHtml ? `<div class="detail-grid">${detailsHtml}</div>` : ''}
 
                     <!-- Action buttons -->
                     <div class="action-row">
                         <button onclick="downloadStampedPdf()" class="btn btn-primary"
-                            ${hasStampedPreview ? '' : 'disabled title="Stamped PDF unavailable for this password/file"'}
+                            ${hasStampedPreview ? '' : `disabled title="${stampButtonTitle}"`}
                             style="display:flex;align-items:center;gap:0.5rem;background:#6366f1;${hasStampedPreview ? '' : 'opacity:0.55;cursor:not-allowed;'}">
                             <i data-lucide="stamp" style="width:16px;height:16px;"></i>
                             Download Stamped PDF
@@ -977,15 +1035,26 @@
         }
 
         function detailItem(label, value) {
+            if (!hasMeaningfulValue(value)) {
+                return '';
+            }
             return `<div class="detail-item">
-                        <div class="label">${label}</div>
-                        <div class="value">${value || 'N/A'}</div>
+                        <div class="label">${escapeHtml(label)}</div>
+                        <div class="value">${escapeHtml(String(value))}</div>
                     </div>`;
         }
 
         // ── Download helpers ─────────────────────────────────────────────────
         async function downloadStampedPdf() {
             const file = fileInput.files[0]; if (!file) return;
+            if (currentStampedBlob && currentStampedFilename) {
+                triggerBlobDownload(currentStampedBlob, currentStampedFilename);
+                return;
+            }
+            if (!hasStampedPreview) {
+                alert('Stamped PDF is not available for this file.');
+                return;
+            }
             await downloadBlob('/api/verify-stamp', file, 'stamped_' + file.name);
         }
 
@@ -1032,10 +1101,7 @@
                         throw new Error(message);
                     }
                     const blob = await resp.blob();
-                    const url = URL.createObjectURL(blob);
-                    const a = Object.assign(document.createElement('a'), { href: url, download: filename });
-                    document.body.appendChild(a); a.click();
-                    URL.revokeObjectURL(url); a.remove();
+                    triggerBlobDownload(blob, filename);
                     break;
                 }
             } catch (e) {
@@ -1051,3 +1117,4 @@
 </body>
 
 </html>
+
